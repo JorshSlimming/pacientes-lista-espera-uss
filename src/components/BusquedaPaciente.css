@@ -1,0 +1,353 @@
+.busqueda-paciente {
+  padding: 0;
+}
+
+.busqueda-header {
+  margin-bottom: 2rem;
+}
+
+.busqueda-header h2 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+  font-size: 1.8rem;
+}
+
+.busqueda-header p {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 1rem;
+}
+
+.busqueda-form {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.ejemplo-container {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e3edf7 100%);
+  padding: 2.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  border: 2px dashed #667eea;
+}
+
+.ejemplo-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.ejemplo-header h3 {
+  margin: 0 0 0.5rem 0;
+  color: #667eea;
+  font-size: 1.6rem;
+}
+
+.ejemplo-texto {
+  margin: 0;
+  color: #5a6c7d;
+  font-size: 1rem;
+}
+
+.ejemplo-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.ejemplo-seccion {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ejemplo-seccion h4 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.ejemplo-seccion p {
+  margin: 0 0 0.75rem 0;
+  color: #5a6c7d;
+  line-height: 1.6;
+}
+
+.ejemplo-seccion ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: #5a6c7d;
+}
+
+.ejemplo-seccion li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.busqueda-input-group {
+  display: flex;
+  gap: 1rem;
+  max-width: 600px;
+}
+
+.busqueda-input-group input {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  transition: border-color 0.2s;
+}
+
+.busqueda-input-group input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.btn-buscar {
+  padding: 0.875rem 2rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn-buscar:hover {
+  background: #5568d3;
+}
+
+.error-busqueda {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f8d7da;
+  color: #721c24;
+  border-radius: 6px;
+  border-left: 4px solid #dc3545;
+}
+
+.resultados-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.info-contacto-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.info-contacto-card h3 {
+  margin: 0 0 1.5rem 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 0.5rem;
+}
+
+.info-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-full-width {
+  grid-column: 1 / -1;
+}
+
+.info-item label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 1.05rem;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.info-value.telefono {
+  font-size: 1.2rem;
+  color: #667eea;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.agendamientos-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.agendamientos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 0.5rem;
+}
+
+.agendamientos-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.3rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.agendamientos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.agendamiento-item {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.2s;
+}
+
+.agendamiento-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.agendamiento-header-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.agendamiento-especialidad {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.badge-agendado {
+  padding: 0.4rem 0.9rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-block;
+}
+
+.agendado-no {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.agendado-si {
+  background: #d4edda;
+  color: #155724;
+}
+
+.agendado-desiste {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.agendamiento-detalles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.detalle-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.detalle-label {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  font-weight: 600;
+}
+
+.detalle-valor {
+  font-size: 0.95rem;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.detalle-valor.destacado {
+  color: #667eea;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.badge-llamadas {
+  padding: 0.3rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-block;
+}
+
+.no-data {
+  text-align: center;
+  color: #95a5a6;
+  padding: 3rem;
+  font-style: italic;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .info-grid-2col {
+    grid-template-columns: 1fr;
+  }
+  
+  .busqueda-input-group {
+    flex-direction: column;
+  }
+  
+  .agendamientos-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .agendamiento-header-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
