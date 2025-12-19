@@ -10,19 +10,97 @@ interface Props {
 }
 
 const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
+  // Filtros temporales (lo que el usuario selecciona)
   const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
   const [filtroSubesp1, setFiltroSubesp1] = useState('');
   const [filtroSubesp2, setFiltroSubesp2] = useState('');
   const [soloPendientes, setSoloPendientes] = useState(false);
+  
+  // Filtros aplicados (lo que realmente filtra la lista)
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
+    especialidad: '',
+    subesp1: '',
+    subesp2: '',
+    pendientes: false
+  });
+  
   const [ordenPor, setOrdenPor] = useState<'fecha_ingreso' | 'num_llamadas'>('fecha_ingreso');
   const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc');
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<PacienteCompleto | null>(null);
+  
+  // Estado para pacientes cargados y loading
+  const [pacientesCargados, setPacientesCargados] = useState<PacienteCompleto[]>([]);
+  const [cargando, setCargando] = useState(false);
   const [modalLlamada, setModalLlamada] = useState<{ paciente: PacienteCompleto; tipo: 'primera' | 'segunda' | 'tercera' } | null>(null);
   const [fechaHoraLlamada, setFechaHoraLlamada] = useState('');
 
   const especialidadesPrincipales = useMemo(() => 
     especialidades.filter(e => e.nivel === 1), []
   );
+
+  // Función para buscar pacientes en mockData según filtros
+  const buscarPacientes = () => {
+    setCargando(true);
+    
+    // Construir pacientes completos desde mockData
+    let resultado = pacientes.map(p => {
+      const seg = seguimientos.find(s => s.id_paciente === p.rut);
+      const esp = especialidades.find(e => e.id === seg?.id_especialidad);
+      const ejec = trabajadores.find(t => t.rut === seg?.rut_ejecutivo_ingreso);
+
+      return {
+        ...p,
+        seguimiento: seg!,
+        especialidad: esp!,
+        comuna: { id: 0, nombre: '' },
+        origen: { id: 0, nombre: '', requiere_ci: false },
+        institucion: null,
+        ejecutivo: ejec!,
+      };
+    });
+    
+    // Aplicar filtros seleccionados
+    if (filtroEspecialidad) {
+      resultado = resultado.filter(p => {
+        const esp = especialidades.find(e => e.id === p.seguimiento.id_especialidad);
+        if (!esp) return false;
+        if (esp.id === parseInt(filtroEspecialidad)) return true;
+        if (esp.parent_id === parseInt(filtroEspecialidad)) return true;
+        const parent = especialidades.find(e => e.id === esp.parent_id);
+        if (parent && parent.parent_id === parseInt(filtroEspecialidad)) return true;
+        return false;
+      });
+    }
+    
+    if (filtroSubesp1) {
+      resultado = resultado.filter(p => {
+        const esp = especialidades.find(e => e.id === p.seguimiento.id_especialidad);
+        if (!esp) return false;
+        if (esp.id === parseInt(filtroSubesp1)) return true;
+        if (esp.parent_id === parseInt(filtroSubesp1)) return true;
+        return false;
+      });
+    }
+    
+    if (filtroSubesp2) {
+      resultado = resultado.filter(p => 
+        p.seguimiento.id_especialidad === parseInt(filtroSubesp2)
+      );
+    }
+    
+    if (soloPendientes) {
+      resultado = resultado.filter(p => p.seguimiento.agendado === 'no');
+    }
+    
+    setPacientesCargados(resultado);
+    setFiltrosAplicados({
+      especialidad: filtroEspecialidad,
+      subesp1: filtroSubesp1,
+      subesp2: filtroSubesp2,
+      pendientes: soloPendientes
+    });
+    setCargando(false);
+  };
 
   const subespecialidades1 = useMemo(() => {
     if (!filtroEspecialidad) return [];
@@ -38,68 +116,9 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     );
   }, [filtroSubesp1]);
 
-  const pacientesCompletos: PacienteCompleto[] = useMemo(() => {
-    return pacientes.map(p => {
-      const seg = seguimientos.find(s => s.id_paciente === p.rut);
-      const esp = especialidades.find(e => e.id === seg?.id_especialidad);
-      const ejec = trabajadores.find(t => t.rut === seg?.rut_ejecutivo_ingreso);
-
-      return {
-        ...p,
-        seguimiento: seg!,
-        especialidad: esp!,
-        comuna: { id: 0, nombre: '' },
-        origen: { id: 0, nombre: '', requiere_ci: false },
-        institucion: null,
-        ejecutivo: ejec!,
-      };
-    });
-  }, []);
-
+  // Aplicar ordenamiento a los pacientes cargados (ya vienen filtrados de buscarPacientes)
   const pacientesFiltrados = useMemo(() => {
-    let resultado = [...pacientesCompletos];
-
-    // Filtrar por especialidad
-    if (filtroEspecialidad) {
-      resultado = resultado.filter(p => {
-        const esp = especialidades.find(e => e.id === p.seguimiento.id_especialidad);
-        if (!esp) return false;
-        
-        // Buscar si la especialidad o sus padres coinciden
-        if (esp.id === parseInt(filtroEspecialidad)) return true;
-        if (esp.parent_id === parseInt(filtroEspecialidad)) return true;
-        
-        const parent = especialidades.find(e => e.id === esp.parent_id);
-        if (parent && parent.parent_id === parseInt(filtroEspecialidad)) return true;
-        
-        return false;
-      });
-    }
-
-    // Filtrar por subespecialidad 1
-    if (filtroSubesp1) {
-      resultado = resultado.filter(p => {
-        const esp = especialidades.find(e => e.id === p.seguimiento.id_especialidad);
-        if (!esp) return false;
-        
-        if (esp.id === parseInt(filtroSubesp1)) return true;
-        if (esp.parent_id === parseInt(filtroSubesp1)) return true;
-        
-        return false;
-      });
-    }
-
-    // Filtrar por subespecialidad 2
-    if (filtroSubesp2) {
-      resultado = resultado.filter(p => 
-        p.seguimiento.id_especialidad === parseInt(filtroSubesp2)
-      );
-    }
-
-    // Filtrar solo pendientes
-    if (soloPendientes) {
-      resultado = resultado.filter(p => p.seguimiento.agendado === 'no');
-    }
+    let resultado = [...pacientesCargados];
 
     // Ordenar
     resultado.sort((a, b) => {
@@ -125,7 +144,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     });
 
     return resultado;
-  }, [pacientesCompletos, filtroEspecialidad, filtroSubesp1, filtroSubesp2, soloPendientes, ordenPor, ordenDir]);
+  }, [pacientesCargados, ordenPor, ordenDir]);
 
   const cambiarEstadoAgendado = (paciente: PacienteCompleto, nuevoEstado: 'si' | 'no' | 'desiste') => {
     const confirmar = window.confirm(
@@ -293,6 +312,12 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
             </div>
           )}
         </div>
+        
+        <div className="filtro-boton-centrado">
+          <button className="btn-buscar" onClick={buscarPacientes} disabled={cargando}>
+            {cargando ? '⏳ Buscando...' : '🔍 Buscar'}
+          </button>
+        </div>
         <div className="contador-resultados">
           <span className="contador-badge">{pacientesFiltrados.length} resultados encontrados</span>
         </div>
@@ -313,10 +338,18 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
             </tr>
           </thead>
           <tbody>
-            {pacientesFiltrados.length === 0 ? (
+            {cargando ? (
               <tr>
                 <td colSpan={8} className="no-data">
-                  No se encontraron pacientes con los filtros aplicados
+                  🔄 Cargando pacientes...
+                </td>
+              </tr>
+            ) : pacientesFiltrados.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="no-data">
+                  {Object.values(filtrosAplicados).every(v => !v) 
+                    ? 'Seleccione filtros y presione "Buscar" para cargar pacientes'
+                    : 'No se encontraron pacientes con los filtros aplicados'}
                 </td>
               </tr>
             ) : (
