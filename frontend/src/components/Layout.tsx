@@ -56,7 +56,7 @@ const Layout: React.FC = () => {
                 </div>
               </div>
               <div className="header-kpi kpi-success">
-                <span className="header-kpi-icon">✓</span>
+                <span className="header-kpi-icon">✅</span>
                 <div className="header-kpi-info">
                   <span className="header-kpi-value">{estadisticas.agendados}</span>
                   <span className="header-kpi-label">Ya Agendados</span>

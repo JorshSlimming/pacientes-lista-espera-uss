@@ -238,14 +238,14 @@ const Administracion: React.FC = () => {
                                 onClick={() => handleEditar(sub1)}
                                 title="Editar"
                               >
-                                ✏️
+                                Editar
                               </button>
                               <button 
                                 className="btn-accion btn-archivar" 
                                 onClick={() => handleArchivar(sub1)}
                                 title="Archivar"
                               >
-                                📦
+                                Archivar
                               </button>
                             </td>
                           </tr>
@@ -312,14 +312,14 @@ const Administracion: React.FC = () => {
                                 onClick={() => handleEditar(sub2)}
                                 title="Editar"
                               >
-                                ✏️
+                                Editar
                               </button>
                               <button 
                                 className="btn-accion btn-archivar" 
                                 onClick={() => handleArchivar(sub2)}
                                 title="Archivar"
                               >
-                                📦
+                                Archivar
                               </button>
                             </td>
                           </tr>
@@ -366,14 +366,14 @@ const Administracion: React.FC = () => {
                       onClick={() => handleEditar(item)}
                       title="Editar"
                     >
-                      ✏️
+                      Editar
                     </button>
                     <button 
                       className="btn-accion btn-archivar" 
                       onClick={() => handleArchivar(item)}
                       title="Archivar"
                     >
-                      📦
+                      Archivar
                     </button>
                   </td>
                 </tr>
@@ -539,25 +539,25 @@ const Administracion: React.FC = () => {
             className={`tab-entidad ${entidadActiva === 'comunas' ? 'active' : ''}`}
             onClick={() => setEntidadActiva('comunas')}
           >
-            🏙️ Comunas
+            Comunas
           </button>
           <button
             className={`tab-entidad ${entidadActiva === 'origenes' ? 'active' : ''}`}
             onClick={() => setEntidadActiva('origenes')}
           >
-            📍 Orígenes
+            Orígenes
           </button>
           <button
             className={`tab-entidad ${(entidadActiva === 'especialidades' || entidadActiva === 'subesp1' || entidadActiva === 'subesp2') ? 'active' : ''}`}
             onClick={() => setEntidadActiva('especialidades')}
           >
-            🩺 Especialidades
+            Especialidades
           </button>
           <button
             className={`tab-entidad ${entidadActiva === 'instituciones' ? 'active' : ''}`}
             onClick={() => setEntidadActiva('instituciones')}
           >
-            🏥 Instituciones
+            Instituciones
           </button>
         </div>
 
@@ -600,7 +600,7 @@ const Administracion: React.FC = () => {
             <div className="buscador-catalogo">
               <input
                 type="text"
-                placeholder="🔍 Buscar..."
+                placeholder="Buscar..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 className="input-buscar"

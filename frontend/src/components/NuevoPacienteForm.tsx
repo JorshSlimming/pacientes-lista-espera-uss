@@ -130,7 +130,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
           }
         }
         
-        setMensaje('ℹ️ Paciente existente cargado. Puede modificar los datos.');
+        setMensaje('Paciente existente cargado. Puede modificar los datos.');
         setTimeout(() => setMensaje(''), 4000);
       }
     }
@@ -557,7 +557,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             Limpiar Formulario
           </button>
           <button type="submit" className="btn-primary" disabled={guardando}>
-            {guardando ? 'Guardando...' : '✓ Registrar Paciente'}
+            {guardando ? 'Guardando...' : 'Registrar Paciente'}
           </button>
         </div>
       </form>

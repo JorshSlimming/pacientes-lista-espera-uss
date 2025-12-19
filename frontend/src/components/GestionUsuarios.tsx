@@ -287,7 +287,6 @@ const GestionUsuarios: React.FC = () => {
       )}
 
       <div className="usuarios-header">
-        <h2>👥 Gestión de Usuarios</h2>
         <button className="btn btn-primary" onClick={handleNuevoUsuario}>
           ➕ Nuevo Usuario
         </button>
@@ -325,14 +324,14 @@ const GestionUsuarios: React.FC = () => {
                     onClick={() => handleCambiarPassword(usuario)}
                     title="Cambiar contraseña"
                   >
-                    🔒
+                    Cambiar Clave
                   </button>
                   <button
                     className={`btn-accion ${usuario.activo !== false ? 'btn-desactivar' : 'btn-activar'}`}
                     onClick={() => handleDesactivarUsuario(usuario)}
                     title={usuario.activo !== false ? 'Desactivar usuario' : 'Activar usuario'}
                   >
-                    {usuario.activo !== false ? '🚫' : '✅'}
+                    {usuario.activo !== false ? 'Desactivar' : 'Activar'}
                   </button>
                 </td>
               </tr>

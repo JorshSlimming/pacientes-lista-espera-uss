@@ -114,7 +114,7 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content modal-detalle" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Detalle del Paciente</h2>
+          <h2>Detalle de {paciente.nombre} {paciente.primer_apellido} {paciente.segundo_apellido}</h2>
           <button className="btn-close" onClick={onClose}>×</button>
         </div>
 
@@ -145,16 +145,6 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
           {tabActiva === 'info' && (
             <div className="info-section">
               <div className="info-grid">
-                <div className="info-item">
-                  <label>RUT</label>
-                  <div className="info-value">{paciente.rut}</div>
-                </div>
-                <div className="info-item">
-                  <label>Nombre Completo</label>
-                  <div className="info-value">
-                    {`${paciente.nombre} ${paciente.primer_apellido} ${paciente.segundo_apellido}`}
-                  </div>
-                </div>
                 <div className="info-item">
                   <label>Fecha de Nacimiento</label>
                   <div className="info-value">

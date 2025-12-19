@@ -143,7 +143,7 @@ const DashboardJefe: React.FC = () => {
 
       <div className="kpis-grid">
         <div className="kpi-card kpi-primary">
-          <div className="kpi-icon">📋</div>
+          <div className="kpi-icon"></div>
           <div className="kpi-content">
             <div className="kpi-value">{estadisticas.totalIngresos}</div>
             <div className="kpi-label">Total Ingresos</div>
@@ -151,7 +151,7 @@ const DashboardJefe: React.FC = () => {
         </div>
 
         <div className="kpi-card kpi-warning">
-          <div className="kpi-icon">⏳</div>
+          <div className="kpi-icon"></div>
           <div className="kpi-content">
             <div className="kpi-value">{estadisticas.pendientes}</div>
             <div className="kpi-label">Pendientes</div>
@@ -159,7 +159,7 @@ const DashboardJefe: React.FC = () => {
         </div>
 
         <div className="kpi-card kpi-success">
-          <div className="kpi-icon">✓</div>
+          <div className="kpi-icon"></div>
           <div className="kpi-content">
             <div className="kpi-value">{estadisticas.agendados}</div>
             <div className="kpi-label">Agendados</div>
@@ -167,7 +167,7 @@ const DashboardJefe: React.FC = () => {
         </div>
 
         <div className="kpi-card kpi-danger">
-          <div className="kpi-icon">✗</div>
+          <div className="kpi-icon"></div>
           <div className="kpi-content">
             <div className="kpi-value">{estadisticas.desisten}</div>
             <div className="kpi-label">Desisten</div>

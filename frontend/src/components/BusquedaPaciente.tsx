@@ -6,7 +6,8 @@ import './BusquedaPaciente.css';
 const BusquedaPaciente: React.FC = () => {
   const [rutBusqueda, setRutBusqueda] = useState('');
   const [pacienteEncontrado, setPacienteEncontrado] = useState<any>(null);
-  const [mostrarAgendados, setMostrarAgendados] = useState(true);
+  const [mostrarSoloPendientes, setMostrarSoloPendientes] = useState(false);
+  const [ordenFecha, setOrdenFecha] = useState<'asc' | 'desc'>('desc');
   const [error, setError] = useState('');
 
   const buscarPaciente = () => {
@@ -57,8 +58,12 @@ const BusquedaPaciente: React.FC = () => {
   };
 
   const seguimientosFiltrados = pacienteEncontrado?.seguimientos.filter((seg: any) => {
-    if (mostrarAgendados) return true;
-    return seg.agendado === 'no';
+    if (mostrarSoloPendientes) return seg.agendado === 'no';
+    return true;
+  }).sort((a: any, b: any) => {
+    const fechaA = new Date(a.fecha_ingreso).getTime();
+    const fechaB = new Date(b.fecha_ingreso).getTime();
+    return ordenFecha === 'desc' ? fechaB - fechaA : fechaA - fechaB;
   }) || [];
 
   const obtenerEstadoLlamadas = (seg: any) => {
@@ -80,7 +85,7 @@ const BusquedaPaciente: React.FC = () => {
             onKeyPress={(e) => e.key === 'Enter' && buscarPaciente()}
           />
           <button onClick={buscarPaciente} className="btn-buscar">
-            🔍 Buscar
+            Buscar
           </button>
         </div>
         {error && <div className="error-busqueda">{error}</div>}
@@ -91,10 +96,6 @@ const BusquedaPaciente: React.FC = () => {
           <div className="info-contacto-card">
             <h3>Información de Contacto</h3>
             <div className="info-grid-2col">
-              <div className="info-item">
-                <label>RUT</label>
-                <div className="info-value">{pacienteEncontrado.rut}</div>
-              </div>
               <div className="info-item">
                 <label>Nombre Completo</label>
                 <div className="info-value">
@@ -139,30 +140,38 @@ const BusquedaPaciente: React.FC = () => {
                   </div>
                 </div>
               )}
-              {pacienteEncontrado.obs && (
-                <div className="info-item info-full-width">
-                  <label>Observaciones</label>
-                  <div className="info-value">{pacienteEncontrado.obs}</div>
-                </div>
-              )}
+              <div className="info-item info-full-width">
+                <label>Observaciones</label>
+                <div className="info-value">{pacienteEncontrado.obs || 'Sin observaciones'}</div>
+              </div>
             </div>
           </div>
 
           <div className="agendamientos-card">
             <div className="agendamientos-header">
               <h3>Agendamientos ({pacienteEncontrado.seguimientos.length})</h3>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={mostrarAgendados}
-                  onChange={(e) => setMostrarAgendados(e.target.checked)}
-                />
-                <span>Mostrar agendados</span>
-              </label>
+              <div className="agendamientos-controles">
+                <select 
+                  className="select-orden"
+                  value={ordenFecha}
+                  onChange={(e) => setOrdenFecha(e.target.value as 'asc' | 'desc')}
+                >
+                  <option value="desc">Más reciente primero</option>
+                  <option value="asc">Más antiguo primero</option>
+                </select>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={mostrarSoloPendientes}
+                    onChange={(e) => setMostrarSoloPendientes(e.target.checked)}
+                  />
+                  <span>Solo pendientes</span>
+                </label>
+              </div>
             </div>
 
             {seguimientosFiltrados.length === 0 ? (
-              <div className="no-data">No hay agendamientos{!mostrarAgendados ? ' pendientes' : ''}</div>
+              <div className="no-data">No hay agendamientos{mostrarSoloPendientes ? ' pendientes' : ''}</div>
             ) : (
               <div className="agendamientos-lista">
                 {seguimientosFiltrados.map((seg: any) => (

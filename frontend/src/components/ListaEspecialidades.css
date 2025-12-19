@@ -12,9 +12,10 @@
 .filtros-container {
   background: white;
   padding: 1.5rem;
-  border-radius: 8px;
+  border-radius: 4px;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #dee2e6;
   position: relative;
 }
 
@@ -67,8 +68,8 @@
 
 .orden-controls-inline select {
   padding: 0.5rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
   font-size: 0.9rem;
 }
 
@@ -126,10 +127,10 @@
 
 .select-agendado {
   padding: 0.4rem 0.6rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }

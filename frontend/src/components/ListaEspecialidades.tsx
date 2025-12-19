@@ -315,7 +315,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
         
         <div className="filtro-boton-centrado">
           <button className="btn-buscar" onClick={buscarPacientes} disabled={cargando}>
-            {cargando ? '⏳ Buscando...' : '🔍 Buscar'}
+            {cargando ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
         <div className="contador-resultados">

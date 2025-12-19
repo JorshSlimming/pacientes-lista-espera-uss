@@ -3,14 +3,14 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #0056b3;
 }
 
 .login-box {
   background: white;
   padding: 2.5rem;
-  border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   width: 100%;
   max-width: 420px;
 }
@@ -50,15 +50,16 @@
 
 .form-group input {
   padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.3s;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #0056b3;
+  box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
 }
 
 .error-message {
@@ -72,18 +73,20 @@
 
 .btn-primary {
   padding: 0.875rem;
-  background: #667eea;
+  background: #0056b3;
   color: white;
   border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.3s;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
 }
 
 .btn-primary:hover {
-  background: #5568d3;
+  background: #004494;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .login-help {
