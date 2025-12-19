@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { comunas, origenes, especialidades, institucionesConvenio, seguimientos, trabajadores } from '../mockData';
+import React, { useState, useEffect } from 'react';
+import { comunas, origenes, especialidades, institucionesConvenio } from '../mockData';
 import type { Comuna, Origen, Especialidad, InstitucionConvenio } from '../types';
 import './Administracion.css';
 
@@ -25,37 +25,6 @@ const Administracion: React.FC = () => {
   useEffect(() => {
     setBusqueda('');
   }, [entidadActiva]);
-
-  // Calcular estadísticas
-  const estadisticas = useMemo(() => {
-    return {
-      totalIngresos: seguimientos.length,
-      pendientes: seguimientos.filter(s => s.agendado === 'no').length,
-      agendados: seguimientos.filter(s => s.agendado === 'si').length,
-      desistidos: seguimientos.filter(s => s.agendado === 'desiste').length,
-    };
-  }, []);
-
-  // Calcular ingresos por ejecutivo
-  const ingresosPorEjecutivo = useMemo(() => {
-    const ingresos: Record<string, { nombre: string; cantidad: number }> = {};
-    
-    seguimientos.forEach(s => {
-      const ejec = trabajadores.find(t => t.rut === s.rut_ejecutivo_ingreso);
-      if (ejec) {
-        const key = ejec.rut;
-        if (!ingresos[key]) {
-          ingresos[key] = {
-            nombre: `${ejec.nombre} ${ejec.apellido}`,
-            cantidad: 0
-          };
-        }
-        ingresos[key].cantidad++;
-      }
-    });
-    
-    return Object.values(ingresos).sort((a, b) => b.cantidad - a.cantidad);
-  }, []);
 
   const mostrarMensaje = (tipo: 'success' | 'error', texto: string) => {
     setMensaje({ tipo, texto });
@@ -558,70 +527,13 @@ const Administracion: React.FC = () => {
 
   return (
     <div className="administracion">
-      {/* KPIs */}
-      <div className="kpis-administracion">
-        <div className="kpi-header">
-          <h2>Estadísticas Generales</h2>
-        </div>
-        
-        <div className="kpis-grid-compacto">
-          <div className="kpi-card-compacto kpi-primary">
-            <div className="kpi-icon-compacto">📋</div>
-            <div className="kpi-content-compacto">
-              <div className="kpi-value-compacto">{estadisticas.totalIngresos}</div>
-              <div className="kpi-label-compacto">Total Ingresos</div>
-            </div>
-          </div>
-          
-          <div className="kpi-card-compacto kpi-warning">
-            <div className="kpi-icon-compacto">⏳</div>
-            <div className="kpi-content-compacto">
-              <div className="kpi-value-compacto">{estadisticas.pendientes}</div>
-              <div className="kpi-label-compacto">Pendientes</div>
-            </div>
-          </div>
-          
-          <div className="kpi-card-compacto kpi-success">
-            <div className="kpi-icon-compacto">✓</div>
-            <div className="kpi-content-compacto">
-              <div className="kpi-value-compacto">{estadisticas.agendados}</div>
-              <div className="kpi-label-compacto">Agendados</div>
-            </div>
-          </div>
-          
-          <div className="kpi-card-compacto kpi-danger">
-            <div className="kpi-icon-compacto">✗</div>
-            <div className="kpi-content-compacto">
-              <div className="kpi-value-compacto">{estadisticas.desistidos}</div>
-              <div className="kpi-label-compacto">Desistidos</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Ingresos por Ejecutivo dentro de estadísticas */}
-        <div className="ejecutivos-section-inline">
-          <h3 className="ejecutivos-titulo">👥 Ingresos por Ejecutivo</h3>
-          <div className="ejecutivos-lista-inline">
-            {ingresosPorEjecutivo.map((ejec, idx) => (
-              <div key={idx} className="ejecutivo-card">
-                <span className="ejecutivo-nombre">{ejec.nombre}</span>
-                <div className="ejecutivo-circulo">{ejec.cantidad}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {mensaje && (
         <div className={`mensaje mensaje-${mensaje.tipo}`}>
           {mensaje.texto}
         </div>
       )}
 
-      {/* Mantenedores */}
       <div className="mantenedores-section">
-        <h2>Mantenedores de Catálogos</h2>
-        
         <div className="tabs-entidades">
           <button
             className={`tab-entidad ${entidadActiva === 'comunas' ? 'active' : ''}`}

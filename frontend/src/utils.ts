@@ -31,7 +31,7 @@ export const validarRut = (rut: string): boolean => {
   return dv === dvEsperado;
 };
 
-// Formatear RUT
+// Formatear RUT (solo con guion, sin puntos)
 export const formatearRut = (rut: string): string => {
   const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
   
@@ -40,10 +40,7 @@ export const formatearRut = (rut: string): string => {
   const cuerpo = rutLimpio.slice(0, -1);
   const dv = rutLimpio.slice(-1);
   
-  // Agregar puntos al cuerpo
-  const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  
-  return `${cuerpoFormateado}-${dv}`;
+  return `${cuerpo}-${dv}`;
 };
 
 // Validar email

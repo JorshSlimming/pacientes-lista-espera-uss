@@ -54,6 +54,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [datosYaCargados, setDatosYaCargados] = useState(false);
 
   useEffect(() => {
     setEspecialidadesPrincipales(especialidades.filter(e => e.nivel === 1));
@@ -77,11 +78,12 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
     }
   }, [idSubespecialidad1]);
 
-  // Cargar datos del paciente si el RUT ya existe
-  useEffect(() => {
-    if (rut && validarRut(rut)) {
-      const pacienteExistente = pacientes.find(p => p.rut === rut);
+  // Función para cargar datos de un paciente existente
+  const cargarDatosPacienteExistente = (rutPaciente: string) => {
+    if (!datosYaCargados) {
+      const pacienteExistente = pacientes.find(p => p.rut === rutPaciente);
       if (pacienteExistente) {
+        setDatosYaCargados(true);
         // Cargar datos del paciente
         setNombre(pacienteExistente.nombre);
         setPrimerApellido(pacienteExistente.primer_apellido);
@@ -103,7 +105,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
         }
         
         // Cargar datos del seguimiento
-        const seguimientoExistente = seguimientos.find(s => s.id_paciente === rut);
+        const seguimientoExistente = seguimientos.find(s => s.id_paciente === rutPaciente);
         if (seguimientoExistente) {
           setIdOrigen(seguimientoExistente.id_origen.toString());
           setIdInstitucion(seguimientoExistente.id_institucion_convenio?.toString() || '');
@@ -132,7 +134,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
         setTimeout(() => setMensaje(''), 4000);
       }
     }
-  }, [rut]);
+  };
 
   const origenSeleccionado = origenes.find(o => o.id === parseInt(idOrigen));
   const requiereInstitucion = origenSeleccionado?.requiere_ci || false;
@@ -206,6 +208,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
     setIdSubespecialidad2('');
     setObs('');
     setErrores({});
+    setDatosYaCargados(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -307,7 +310,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
               <label>Especialidad <span className="required">*</span></label>
               <select value={idEspecialidad} onChange={(e) => setIdEspecialidad(e.target.value)}>
                 <option value="">Seleccionar...</option>
-                {especialidadesPrincipales.map(e => (
+                {[...especialidadesPrincipales].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => (
                   <option key={e.id} value={e.id}>{e.nombre}</option>
                 ))}
               </select>
@@ -319,7 +322,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
                 <label>Subespecialidad 1 <span className="required">*</span></label>
                 <select value={idSubespecialidad1} onChange={(e) => setIdSubespecialidad1(e.target.value)}>
                   <option value="">Seleccionar...</option>
-                  {subespecialidades1.map(e => (
+                  {[...subespecialidades1].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => (
                     <option key={e.id} value={e.id}>{e.nombre}</option>
                   ))}
                 </select>
@@ -332,7 +335,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
                 <label>Subespecialidad 2</label>
                 <select value={idSubespecialidad2} onChange={(e) => setIdSubespecialidad2(e.target.value)}>
                   <option value="">Seleccionar...</option>
-                  {subespecialidades2.map(e => (
+                  {[...subespecialidades2].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => (
                     <option key={e.id} value={e.id}>{e.nombre}</option>
                   ))}
                 </select>
@@ -350,7 +353,26 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <input
               type="text"
               value={rut}
-              onChange={(e) => setRut(formatearRut(e.target.value))}
+              onChange={(e) => {
+                const valor = e.target.value.replace(/[^0-9kK-]/g, '');
+                setRut(valor);
+                setDatosYaCargados(false); // Permitir cargar datos de otro RUT
+                
+                if (valor && valor.length > 1) {
+                  if (!validarRut(valor)) {
+                    setErrores(prev => ({ ...prev, rut: 'RUT inválido o dígito verificador incorrecto' }));
+                  } else {
+                    setErrores(prev => ({ ...prev, rut: '' }));
+                  }
+                }
+              }}
+              onBlur={(e) => {
+                if (e.target.value && validarRut(e.target.value)) {
+                  const rutFormateado = formatearRut(e.target.value);
+                  setRut(rutFormateado);
+                  cargarDatosPacienteExistente(rutFormateado);
+                }
+              }}
               placeholder="12345678-9"
             />
             {errores.rut && <span className="error">{errores.rut}</span>}
@@ -361,7 +383,10 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <input
               type="text"
               value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
+              onChange={(e) => {
+                const valor = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                setNombre(valor);
+              }}
             />
             {errores.nombre && <span className="error">{errores.nombre}</span>}
           </div>
@@ -371,7 +396,10 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <input
               type="text"
               value={primerApellido}
-              onChange={(e) => setPrimerApellido(e.target.value)}
+              onChange={(e) => {
+                const valor = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                setPrimerApellido(valor);
+              }}
             />
             {errores.primerApellido && <span className="error">{errores.primerApellido}</span>}
           </div>
@@ -381,7 +409,10 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <input
               type="text"
               value={segundoApellido}
-              onChange={(e) => setSegundoApellido(e.target.value)}
+              onChange={(e) => {
+                const valor = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                setSegundoApellido(valor);
+              }}
             />
             {errores.segundoApellido && <span className="error">{errores.segundoApellido}</span>}
           </div>
@@ -408,7 +439,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <label>Comuna <span className="required">*</span></label>
             <select value={idComuna} onChange={(e) => setIdComuna(e.target.value)}>
               <option value="">Seleccionar...</option>
-              {comunas.map(c => (
+              {[...comunas].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(c => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
             </select>
@@ -431,7 +462,14 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <input
               type="email"
               value={correo}
-              onChange={(e) => setCorreo(e.target.value)}
+              onChange={(e) => {
+                setCorreo(e.target.value);
+                if (e.target.value && !validarEmail(e.target.value)) {
+                  setErrores(prev => ({ ...prev, correo: 'Formato de correo inválido' }));
+                } else {
+                  setErrores(prev => ({ ...prev, correo: '' }));
+                }
+              }}
               placeholder="ejemplo@email.com"
             />
             {errores.correo && <span className="error">{errores.correo}</span>}
@@ -442,7 +480,15 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <input
               type="text"
               value={primerCelular}
-              onChange={(e) => setPrimerCelular(e.target.value.replace(/\D/g, '').slice(0, 9))}
+              onChange={(e) => {
+                const valor = e.target.value.replace(/\D/g, '').slice(0, 9);
+                setPrimerCelular(valor);
+                if (valor && valor.length !== 9) {
+                  setErrores(prev => ({ ...prev, primerCelular: 'Debe tener exactamente 9 dígitos' }));
+                } else {
+                  setErrores(prev => ({ ...prev, primerCelular: '' }));
+                }
+              }}
               placeholder="987654321"
               maxLength={9}
             />
@@ -454,7 +500,15 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <input
               type="text"
               value={segundoCelular}
-              onChange={(e) => setSegundoCelular(e.target.value.replace(/\D/g, '').slice(0, 9))}
+              onChange={(e) => {
+                const valor = e.target.value.replace(/\D/g, '').slice(0, 9);
+                setSegundoCelular(valor);
+                if (valor && valor.length !== 9) {
+                  setErrores(prev => ({ ...prev, segundoCelular: 'Debe tener exactamente 9 dígitos' }));
+                } else {
+                  setErrores(prev => ({ ...prev, segundoCelular: '' }));
+                }
+              }}
               placeholder="912345678"
               maxLength={9}
             />
@@ -465,7 +519,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <label>Origen <span className="required">*</span></label>
             <select value={idOrigen} onChange={(e) => setIdOrigen(e.target.value)}>
               <option value="">Seleccionar...</option>
-              {origenes.map(o => (
+              {[...origenes].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(o => (
                 <option key={o.id} value={o.id}>{o.nombre}</option>
               ))}
             </select>
@@ -477,15 +531,17 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
               <label>Institución/Convenio <span className="required">*</span></label>
               <select value={idInstitucion} onChange={(e) => setIdInstitucion(e.target.value)}>
                 <option value="">Seleccionar...</option>
-                {instituciones.map(i => (
+                {[...instituciones].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(i => (
                   <option key={i.id} value={i.id}>{i.nombre}</option>
                 ))}
               </select>
               {errores.idInstitucion && <span className="error">{errores.idInstitucion}</span>}
             </div>
           )}
+          </div>
 
-          <div className="form-group-compact">
+          {/* Campo de observaciones al final, fuera del grid */}
+          <div className="form-group-compact observaciones-final">
             <label>Observaciones</label>
             <textarea
               value={obs}
@@ -493,7 +549,6 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
               rows={3}
               placeholder="Información adicional..."
             />
-          </div>
           </div>
         </div>
 

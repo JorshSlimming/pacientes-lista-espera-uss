@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { pacientes, seguimientos, especialidades, trabajadores, auditorias } from '../mockData';
 import { PacienteCompleto } from '../types';
 import { calcularEdad } from '../utils';

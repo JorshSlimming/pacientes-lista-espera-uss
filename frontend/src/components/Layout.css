@@ -14,18 +14,20 @@
 }
 
 .header-content {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 1.25rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 2rem;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .header-left h1 {
@@ -40,10 +42,81 @@
   font-weight: 500;
 }
 
+/* KPIs en el encabezado */
+.header-kpis {
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+  justify-content: center;
+}
+
+.header-kpi {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 6px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  transition: all 0.2s;
+  min-width: 110px;
+}
+
+.header-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-kpi.kpi-primary {
+  border-color: #3498db;
+  background: linear-gradient(135deg, #3498db10 0%, #3498db20 100%);
+}
+
+.header-kpi.kpi-warning {
+  border-color: #f39c12;
+  background: linear-gradient(135deg, #f39c1210 0%, #f39c1220 100%);
+}
+
+.header-kpi.kpi-success {
+  border-color: #27ae60;
+  background: linear-gradient(135deg, #27ae6010 0%, #27ae6020 100%);
+}
+
+.header-kpi.kpi-danger {
+  border-color: #e74c3c;
+  background: linear-gradient(135deg, #e74c3c10 0%, #e74c3c20 100%);
+}
+
+.header-kpi-icon {
+  font-size: 1.25rem;
+}
+
+.header-kpi-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.header-kpi-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1;
+}
+
+.header-kpi-label {
+  font-size: 0.65rem;
+  color: #7f8c8d;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .header-right {
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  flex-shrink: 0;
 }
 
 .user-info {

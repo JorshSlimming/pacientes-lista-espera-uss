@@ -7,7 +7,8 @@ export interface Trabajador {
   rol: Rol;
   nombre: string;
   apellido: string;
-  clave: string;
+  clave?: string;
+  activo?: boolean;
 }
 
 export interface Comuna {
