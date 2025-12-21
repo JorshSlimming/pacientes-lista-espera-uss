@@ -26,10 +26,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
+    // Limpiar RUT (quitar puntos y guiones)
+    const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
+
     const { data: paciente, error } = await supabaseClient
       .from('paciente')
       .select(`
-        rut_paciente,
+        id_paciente,
+        rut,
         nombre,
         primer_apellido,
         segundo_apellido,
@@ -41,7 +45,7 @@ serve(async (req) => {
           segundo_celular
         )
       `)
-      .eq('rut_paciente', rut)
+      .eq('rut', rutLimpio)
       .single();
 
     if (error || !paciente) {

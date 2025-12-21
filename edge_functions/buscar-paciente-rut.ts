@@ -26,6 +26,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
+    // Limpiar RUT
+    const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
+
     // Buscar paciente con todos sus datos relacionados
     const { data: paciente, error: pacienteError } = await supabaseClient
       .from('paciente')
@@ -40,7 +43,7 @@ serve(async (req) => {
           especialidad:id_especialidad (*)
         )
       `)
-      .eq('rut_paciente', rut)
+      .eq('rut', rutLimpio)
       .single();
 
     if (pacienteError || !paciente) {

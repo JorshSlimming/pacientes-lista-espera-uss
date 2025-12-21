@@ -3,6 +3,7 @@
 export type Rol = 'usuario' | 'jefe';
 
 export interface Trabajador {
+  id_trabajador: number;
   rut: string;
   rol: Rol;
   nombre: string;
@@ -53,6 +54,7 @@ export interface Especialidad {
 }
 
 export interface Paciente {
+  id_paciente: number;
   rut: string;
   nombre: string;
   primer_apellido: string;
@@ -74,9 +76,9 @@ export interface Seguimiento {
   fecha_citacion: string | null;
   agendado: 'si' | 'no' | 'desiste';
   numero_llamado: number;
-  id_paciente: string;
+  id_paciente: number;
   id_especialidad: number;
-  rut_ejecutivo_ingreso: string;
+  id_ejecutivo_ingreso: number;
 }
 
 export interface Auditoria {
@@ -85,8 +87,8 @@ export interface Auditoria {
   campo_modificado: string;
   valor_nuevo: string;
   valor_modificado: string;
-  id_trabajador: string;
-  id_paciente: string;
+  id_trabajador: number;
+  id_paciente: number;
 }
 
 export interface PacienteCompleto extends Paciente {

@@ -27,6 +27,21 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
+    // Primero buscar el id_paciente por RUT
+    const rutLimpio = rut_paciente.replace(/\./g, '').replace(/-/g, '');
+    const { data: paciente } = await supabaseClient
+      .from('paciente')
+      .select('id_paciente')
+      .eq('rut', rutLimpio)
+      .single();
+
+    if (!paciente) {
+      return new Response(
+        JSON.stringify({ error: 'Paciente no encontrado' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { data: historial, error } = await supabaseClient
       .from('auditoria')
       .select(`
@@ -36,7 +51,7 @@ serve(async (req) => {
           apellido
         )
       `)
-      .eq('id_paciente', rut_paciente)
+      .eq('id_paciente', paciente.id_paciente)
       .order('fecha_modificacion', { ascending: false });
 
     if (error) throw error;

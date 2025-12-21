@@ -43,11 +43,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
+    // Limpiar RUT (quitar puntos y guiones)
+    const rutLimpio = rut_trabajador.replace(/\./g, '').replace(/-/g, '');
+
     // Verificar que el usuario existe
     const { data: trabajador, error: fetchError } = await supabaseClient
       .from('trabajador')
-      .select('rut_trabajador, rol, nombre, apellido')
-      .eq('rut_trabajador', rut_trabajador)
+      .select('id_trabajador, rut, rol, nombre, apellido')
+      .eq('rut', rutLimpio)
       .single();
 
     if (fetchError || !trabajador) {
@@ -64,7 +67,7 @@ serve(async (req) => {
     const { error: updateError } = await supabaseClient
       .from('trabajador')
       .update({ clave: hashedPassword })
-      .eq('rut_trabajador', rut_trabajador);
+      .eq('id_trabajador', trabajador.id_trabajador);
 
     if (updateError) throw updateError;
 

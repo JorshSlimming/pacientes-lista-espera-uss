@@ -79,7 +79,7 @@ serve(async (req) => {
       const { error: obsError } = await supabaseClient
         .from('paciente')
         .update({ obs: cambios.obs })
-        .eq('rut_paciente', seguimientoActualizado.id_paciente);
+        .eq('id_paciente', seguimientoActualizado.id_paciente);
 
       if (obsError) throw obsError;
     }

@@ -20,22 +20,22 @@ serve(async (req) => {
     // Obtener todos los trabajadores
     const { data: trabajadores, error: trabajadoresError } = await supabaseClient
       .from('trabajador')
-      .select('rut_trabajador, nombre, apellido');
+      .select('id_trabajador, rut, nombre, apellido');
 
     if (trabajadoresError) throw trabajadoresError;
 
-    // Contar ingresos por cada ejecutivo
-    // Nota: Necesitarías agregar campo rut_ejecutivo_ingreso en tabla seguimiento
-    // Por ahora, retornamos los trabajadores con contador en 0
-    // En producción, deberías modificar el modelo para incluir este campo
-    
+    // Contar ingresos por cada ejecutivo desde tabla seguimiento
     const ingresosPromises = trabajadores.map(async (trabajador) => {
-      // Aquí irías a buscar en una tabla de auditoría o seguimiento
-      // el contador de pacientes ingresados por cada ejecutivo
+      const { count } = await supabaseClient
+        .from('seguimiento')
+        .select('*', { count: 'exact', head: true })
+        .eq('id_ejecutivo_ingreso', trabajador.id_trabajador);
+
       return {
-        rut_trabajador: trabajador.rut_trabajador,
+        id_trabajador: trabajador.id_trabajador,
+        rut: trabajador.rut,
         nombre_completo: `${trabajador.nombre} ${trabajador.apellido}`,
-        total_ingresos: 0 // Placeholder - necesita implementarse según modelo
+        total_ingresos: count || 0
       };
     });
 

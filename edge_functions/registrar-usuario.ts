@@ -38,6 +38,9 @@ serve(async (req) => {
       );
     }
 
+    // Limpiar RUT
+    const rutLimpio = rut_trabajador.replace(/\./g, '').replace(/-/g, '');
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -46,8 +49,8 @@ serve(async (req) => {
     // Verificar si el RUT ya existe
     const { data: existente } = await supabaseClient
       .from('trabajador')
-      .select('rut_trabajador')
-      .eq('rut_trabajador', rut_trabajador)
+      .select('id_trabajador')
+      .eq('rut', rutLimpio)
       .single();
 
     if (existente) {
@@ -64,13 +67,13 @@ serve(async (req) => {
     const { data: nuevoTrabajador, error: createError } = await supabaseClient
       .from('trabajador')
       .insert({
-        rut_trabajador,
+        rut: rutLimpio,
         rol,
         nombre,
         apellido,
         clave: hashedPassword
       })
-      .select('rut_trabajador, rol, nombre, apellido')
+      .select('id_trabajador, rut, rol, nombre, apellido')
       .single();
 
     if (createError) throw createError;

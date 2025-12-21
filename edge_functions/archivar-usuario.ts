@@ -29,6 +29,9 @@ serve(async (req) => {
       );
     }
 
+    // Limpiar RUT
+    const rutLimpio = rut_trabajador.replace(/\./g, '').replace(/-/g, '');
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -37,8 +40,8 @@ serve(async (req) => {
     // Verificar que el usuario existe
     const { data: trabajador, error: fetchError } = await supabaseClient
       .from('trabajador')
-      .select('rut_trabajador, rol, nombre, apellido, activo')
-      .eq('rut_trabajador', rut_trabajador)
+      .select('id_trabajador, rut, rol, nombre, apellido, activo')
+      .eq('rut', rutLimpio)
       .single();
 
     if (fetchError || !trabajador) {
@@ -76,7 +79,7 @@ serve(async (req) => {
     const { error: updateError } = await supabaseClient
       .from('trabajador')
       .update({ activo: nuevoEstado })
-      .eq('rut_trabajador', rut_trabajador);
+      .eq('rut', rutLimpio);
 
     if (updateError) throw updateError;
 

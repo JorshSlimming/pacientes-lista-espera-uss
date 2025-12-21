@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { rut_paciente, userRole } = await req.json();
+    const { id_paciente, userRole } = await req.json();
 
     // Solo AdminJefe puede ver el historial completo
     if (userRole !== 'jefe') {
@@ -36,7 +36,7 @@ serve(async (req) => {
           apellido
         )
       `)
-      .eq('id_paciente', rut_paciente)
+      .eq('id_paciente', id_paciente)
       .order('fecha_modificacion', { ascending: false });
 
     if (error) throw error;

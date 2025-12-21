@@ -29,7 +29,7 @@ serve(async (req) => {
 
     let query = supabaseClient
       .from('trabajador')
-      .select('rut_trabajador, rol, nombre, apellido, activo')
+      .select('id_trabajador, rut, rol, nombre, apellido, activo')
       .order('nombre');
 
     // Por defecto, solo mostrar usuarios activos

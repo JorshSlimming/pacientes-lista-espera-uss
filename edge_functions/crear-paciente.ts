@@ -19,11 +19,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
+    // Limpiar RUT
+    const rutLimpio = paciente.rut.replace(/\./g, '').replace(/-/g, '');
+
     // Verificar si el RUT ya existe
     const { data: existente } = await supabaseClient
       .from('paciente')
-      .select('rut_paciente')
-      .eq('rut_paciente', paciente.rut_paciente)
+      .select('id_paciente')
+      .eq('rut', rutLimpio)
       .single();
 
     if (existente) {
@@ -51,7 +54,7 @@ serve(async (req) => {
     const { data: nuevoPaciente, error: pacienteError } = await supabaseClient
       .from('paciente')
       .insert({
-        rut_paciente: paciente.rut_paciente,
+        rut: rutLimpio,
         nombre: paciente.nombre,
         primer_apellido: paciente.primer_apellido,
         segundo_apellido: paciente.segundo_apellido || null,
@@ -74,7 +77,7 @@ serve(async (req) => {
         fecha_ingreso: new Date().toISOString().split('T')[0],
         agendado: 'no',
         numero_llamado: null,
-        id_paciente: nuevoPaciente.rut_paciente,
+        id_paciente: nuevoPaciente.id_paciente,
         id_especialidad: paciente.id_especialidad
       })
       .select()
