@@ -1,0 +1,157 @@
+.confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.confirm-dialog {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 450px;
+  width: 90%;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.confirm-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e0e0e0;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.confirm-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #2c3e50;
+}
+
+.confirm-header-danger {
+  background: #fee;
+  border-bottom-color: #fcc;
+}
+
+.confirm-header-danger h3 {
+  color: #c33;
+}
+
+.confirm-header-warning {
+  background: #fff8e1;
+  border-bottom-color: #ffe082;
+}
+
+.confirm-header-warning h3 {
+  color: #f57f17;
+}
+
+.confirm-header-info {
+  background: #e3f2fd;
+  border-bottom-color: #90caf9;
+}
+
+.confirm-header-info h3 {
+  color: #1565c0;
+}
+
+.confirm-body {
+  padding: 1.5rem;
+}
+
+.confirm-body p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #555;
+}
+
+.confirm-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 0.625rem 1.25rem;
+  background: #f5f5f5;
+  color: #555;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #e0e0e0;
+  border-color: #bbb;
+}
+
+.btn-confirm {
+  padding: 0.625rem 1.25rem;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-confirm-danger {
+  background: #dc3545;
+}
+
+.btn-confirm-danger:hover {
+  background: #c82333;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+}
+
+.btn-confirm-warning {
+  background: #ffc107;
+  color: #333;
+}
+
+.btn-confirm-warning:hover {
+  background: #e0a800;
+  box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+}
+
+.btn-confirm-info {
+  background: #17a2b8;
+}
+
+.btn-confirm-info:hover {
+  background: #138496;
+  box-shadow: 0 2px 4px rgba(23, 162, 184, 0.3);
+}

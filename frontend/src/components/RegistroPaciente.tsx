@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
-import { Paciente, Seguimiento, Contacto } from '../types';
-import { comunas, origenes, instituciones, especialidades, pacientes, seguimientos, contactos } from '../mockData';
-import { validarRut, formatearRut, validarEmail, validarCelular } from '../utils';
+import { Especialidad, Comuna, Origen, Institucion } from '../types';
+import { validarRut, formatearRut, validarEmail, validarCelular, limpiarRut } from '../utils';
+import { catalogosService } from '../api/catalogos.service';
+import { pacientesService } from '../api/pacientes.service';
 import './RegistroPaciente.css';
 
 interface Props {
@@ -31,38 +32,71 @@ const RegistroPaciente: React.FC<Props> = ({ onClose, onSuccess }) => {
   const [idSubespecialidad2, setIdSubespecialidad2] = useState('');
   const [obs, setObs] = useState('');
 
+  // Catálogos
+  const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
+  const [comunas, setComunas] = useState<Comuna[]>([]);
+  const [origenes, setOrigenes] = useState<Origen[]>([]);
+  const [instituciones, setInstituciones] = useState<Institucion[]>([]);
+
   // Opciones dinámicas
-  const [especialidadesPrincipales, setEspecialidadesPrincipales] = useState<typeof especialidades>([]);
-  const [subespecialidades1, setSubespecialidades1] = useState<typeof especialidades>([]);
-  const [subespecialidades2, setSubespecialidades2] = useState<typeof especialidades>([]);
+  const [especialidadesPrincipales, setEspecialidadesPrincipales] = useState<Especialidad[]>([]);
+  const [subespecialidades1, setSubespecialidades1] = useState<Especialidad[]>([]);
+  const [subespecialidades2, setSubespecialidades2] = useState<Especialidad[]>([]);
   
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
+  const [cargandoCatalogos, setCargandoCatalogos] = useState(true);
 
+  // Cargar catálogos al montar
   useEffect(() => {
-    // Cargar especialidades principales (nivel 1)
-    setEspecialidadesPrincipales(especialidades.filter(e => e.nivel === 1));
+    const cargarCatalogos = async () => {
+      setCargandoCatalogos(true);
+      try {
+        const { data, error } = await catalogosService.obtenerDatosAutocompletar();
+        
+        if (error) {
+          console.error('Error cargando catálogos:', error);
+        } else if (data) {
+          setEspecialidades(data.especialidades || []);
+          setComunas(data.comunas || []);
+          setOrigenes(data.origenes || []);
+          setInstituciones(data.instituciones || []);
+        }
+      } catch (error) {
+        console.error('Error al cargar catálogos:', error);
+      } finally {
+        setCargandoCatalogos(false);
+      }
+    };
+    cargarCatalogos();
   }, []);
 
   useEffect(() => {
+    // Cargar especialidades principales (nivel 1)
+    if (especialidades.length > 0) {
+      setEspecialidadesPrincipales(especialidades.filter(e => e.nivel === 1 && !e.archivado));
+    }
+  }, [especialidades]);
+
+  useEffect(() => {
     // Cargar subespecialidades cuando se selecciona especialidad
-    if (idEspecialidad) {
-      const subs = especialidades.filter(e => e.parent_id === parseInt(idEspecialidad) && e.nivel === 2);
+    if (idEspecialidad && especialidades.length > 0) {
+      const subs = especialidades.filter(e => e.parent_id === parseInt(idEspecialidad) && e.nivel === 2 && !e.archivado);
       setSubespecialidades1(subs);
       setIdSubespecialidad1('');
       setIdSubespecialidad2('');
       setSubespecialidades2([]);
     }
-  }, [idEspecialidad]);
+  }, [idEspecialidad, especialidades]);
 
   useEffect(() => {
     // Cargar subespecialidades de nivel 3
-    if (idSubespecialidad1) {
-      const subs = especialidades.filter(e => e.parent_id === parseInt(idSubespecialidad1) && e.nivel === 3);
+    if (idSubespecialidad1 && especialidades.length > 0) {
+      const subs = especialidades.filter(e => e.parent_id === parseInt(idSubespecialidad1) && e.nivel === 3 && !e.archivado);
       setSubespecialidades2(subs);
       setIdSubespecialidad2('');
     }
-  }, [idSubespecialidad1]);
+  }, [idSubespecialidad1, especialidades]);
 
   const origenSeleccionado = origenes.find(o => o.id === parseInt(idOrigen));
   const requiereInstitucion = origenSeleccionado?.requiere_ci || false;
@@ -127,7 +161,7 @@ const RegistroPaciente: React.FC<Props> = ({ onClose, onSuccess }) => {
     return Object.keys(nuevosErrores).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validarFormulario()) {
@@ -136,53 +170,41 @@ const RegistroPaciente: React.FC<Props> = ({ onClose, onSuccess }) => {
 
     setGuardando(true);
 
-    // Simular guardado
-    setTimeout(() => {
-      // Crear nuevo contacto
-      const nuevoContacto: Contacto = {
-        id: contactos.length + 1,
-        correo,
-        direccion,
-        primer_celular: primerCelular,
-        segundo_celular: segundoCelular,
-      };
-      contactos.push(nuevoContacto);
+    // Determinar la especialidad final (nivel más bajo seleccionado)
+    let especialidadFinal = parseInt(idEspecialidad);
+    if (idSubespecialidad2) {
+      especialidadFinal = parseInt(idSubespecialidad2);
+    } else if (idSubespecialidad1) {
+      especialidadFinal = parseInt(idSubespecialidad1);
+    }
 
-      // Crear nuevo paciente
-      const nuevoPaciente: Paciente = {
-        rut,
-        nombre,
-        primer_apellido: primerApellido,
-        segundo_apellido: segundoApellido,
-        fecha_nacimiento: fechaNacimiento,
-        obs,
-        id_comuna: parseInt(idComuna),
-        id_origen: parseInt(idOrigen),
-        id_institucion_convenio: idInstitucion ? parseInt(idInstitucion) : null,
-        contacto: nuevoContacto,
-      };
-      pacientes.push(nuevoPaciente);
+    const datosNuevoPaciente = {
+      rut: limpiarRut(rut),
+      nombre,
+      primer_apellido: primerApellido,
+      segundo_apellido: segundoApellido,
+      fecha_nacimiento: fechaNacimiento,
+      obs,
+      id_comuna: parseInt(idComuna),
+      id_origen: parseInt(idOrigen),
+      id_institucion_convenio: idInstitucion ? parseInt(idInstitucion) : null,
+      correo,
+      direccion,
+      primer_celular: primerCelular,
+      segundo_celular: segundoCelular,
+      id_especialidad: especialidadFinal
+    };
 
-      // Crear seguimiento
-      const nuevoSeguimiento: Seguimiento = {
-        id: seguimientos.length + 1,
-        fecha_ingreso: new Date().toISOString().split('T')[0],
-        fecha_primera_llamada: null,
-        fecha_segunda_llamada: null,
-        fecha_tercera_llamada: null,
-        fecha_citacion: null,
-        agendado: 'no',
-        numero_llamado: 0,
-        id_paciente: rut,
-        id_especialidad: parseInt(idSubespecialidad1 || idEspecialidad),
-        rut_ejecutivo_ingreso: usuario?.rut || '',
-      };
-      seguimientos.push(nuevoSeguimiento);
+    const { error } = await pacientesService.crearPaciente(datosNuevoPaciente);
 
-      setGuardando(false);
+    setGuardando(false);
+
+    if (error) {
+      alert(error);
+    } else {
       onSuccess();
       onClose();
-    }, 1000);
+    }
   };
 
   return (
@@ -193,7 +215,14 @@ const RegistroPaciente: React.FC<Props> = ({ onClose, onSuccess }) => {
           <button className="btn-close" onClick={onClose}>×</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="registro-form">
+        {cargandoCatalogos ? (
+          <div className="registro-form" style={{ padding: '2rem' }}>
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="registro-form">
           <div className="form-section">
             <h3>Información Personal</h3>
             <div className="form-row">
@@ -418,6 +447,7 @@ const RegistroPaciente: React.FC<Props> = ({ onClose, onSuccess }) => {
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

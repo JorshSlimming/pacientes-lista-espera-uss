@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { verificarAutenticacion, verificarRol } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,17 +13,27 @@ serve(async (req) => {
   }
 
   try {
-    const { rut_trabajador, rol, nombre, apellido, clave, userRole } = await req.json();
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        },
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! }
+        }
+      }
+    );
 
-    // Solo AdminJefe puede crear usuarios
-    if (userRole !== 'jefe') {
-      return new Response(
-        JSON.stringify({ error: 'No tienes permisos para crear usuarios' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Verificar autenticación y rol de jefe
+    const trabajador = await verificarAutenticacion(req, supabaseClient);
+    verificarRol(trabajador, ['jefe']);
 
-    if (!rut_trabajador || !rol || !nombre || !apellido || !clave) {
+    const { rut, rol, nombre, apellido, email, clave } = await req.json();
+
+    if (!rut || !rol || !nombre || !apellido || !email || !clave) {
       return new Response(
         JSON.stringify({ error: 'Todos los campos son requeridos' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -38,16 +48,17 @@ serve(async (req) => {
       );
     }
 
-    const supabaseClient = createClient(
+    // Limpiar RUT (quitar puntos y guiones)
+    const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
+
+    // Usar SERVICE_ROLE para operaciones de admin
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Limpiar RUT (quitar puntos y guiones)
-    const rutLimpio = rut_trabajador.replace(/\./g, '').replace(/-/g, '');
-
     // Verificar si el RUT ya existe
-    const { data: existente } = await supabaseClient
+    const { data: existente } = await supabaseAdmin
       .from('trabajador')
       .select('id_trabajador')
       .eq('rut', rutLimpio)
@@ -60,23 +71,34 @@ serve(async (req) => {
       );
     }
 
-    // Hashear contraseña con bcrypt
-    const hashedPassword = await bcrypt.hash(clave);
+    // 1. Crear usuario en Supabase Auth
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: clave,
+      email_confirm: true // Confirmar email automáticamente
+    });
 
-    // Crear nuevo trabajador
-    const { data: nuevoTrabajador, error: createError } = await supabaseClient
+    if (authError) throw authError;
+
+    // 2. Crear trabajador vinculado al auth_uid
+    const { data: nuevoTrabajador, error: createError } = await supabaseAdmin
       .from('trabajador')
       .insert({
         rut: rutLimpio,
         rol,
         nombre,
         apellido,
-        clave: hashedPassword
+        auth_uid: authUser.user.id,
+        activo: true
       })
       .select('id_trabajador, rut, rol, nombre, apellido')
       .single();
 
-    if (createError) throw createError;
+    if (createError) {
+      // Si falla la creación del trabajador, eliminar el usuario de auth
+      await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+      throw createError;
+    }
 
     return new Response(
       JSON.stringify({

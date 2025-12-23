@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verificarAutenticacion } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,24 +13,51 @@ serve(async (req) => {
   }
 
   try {
-    const { id_seguimiento, cambios, rut_trabajador } = await req.json();
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        },
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! }
+        }
+      }
     );
+
+    // Verificar autenticación
+    await verificarAutenticacion(req, supabaseClient);
+
+    const body = await req.json();
+    const { id_seguimiento, id_paciente, obs, ...cambios } = body;
+
+    console.log('📝 Actualizando seguimiento:', { id_seguimiento, id_paciente, cambios });
+
+    // Determinar qué seguimiento actualizar
+    let seguimientoQuery = supabaseClient.from('seguimiento').select('*');
+    
+    if (id_seguimiento) {
+      // Si viene id_seguimiento, usarlo (más preciso)
+      seguimientoQuery = seguimientoQuery.eq('id_seguimiento', id_seguimiento);
+    } else if (id_paciente) {
+      // Si solo viene id_paciente, buscar el seguimiento más reciente
+      seguimientoQuery = seguimientoQuery.eq('id_paciente', id_paciente).order('fecha_ingreso', { ascending: false }).limit(1);
+    } else {
+      throw new Error('Debe proporcionar id_seguimiento o id_paciente');
+    }
+
+    const { data: seguimientoActual, error: getError } = await seguimientoQuery.maybeSingle();
+
+    if (getError) throw getError;
+    if (!seguimientoActual) throw new Error('Seguimiento no encontrado');
 
     // Validación: Si se va a agendar, debe tener al menos una llamada
     if (cambios.agendado === 'si') {
-      const { data: seguimiento } = await supabaseClient
-        .from('seguimiento')
-        .select('fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada')
-        .eq('id_seguimiento', id_seguimiento)
-        .single();
-
-      const tieneLlamada = seguimiento?.fecha_primera_llamada || 
-                          seguimiento?.fecha_segunda_llamada || 
-                          seguimiento?.fecha_tercera_llamada ||
+      const tieneLlamada = seguimientoActual.fecha_primera_llamada || 
+                          seguimientoActual.fecha_segunda_llamada || 
+                          seguimientoActual.fecha_tercera_llamada ||
                           cambios.fecha_primera_llamada ||
                           cambios.fecha_segunda_llamada ||
                           cambios.fecha_tercera_llamada;
@@ -64,30 +92,62 @@ serve(async (req) => {
       camposPermitidos.fecha_citacion = cambios.fecha_citacion;
     }
 
-    // Actualizar seguimiento
-    const { data: seguimientoActualizado, error: updateError } = await supabaseClient
-      .from('seguimiento')
-      .update(camposPermitidos)
-      .eq('id_seguimiento', id_seguimiento)
-      .select()
-      .single();
+    // Solo actualizar seguimiento si hay cambios
+    let seguimientoActualizado = seguimientoActual;
+    if (Object.keys(camposPermitidos).length > 0) {
+      // Actualizar seguimiento
+      const { data, error: updateError } = await supabaseClient
+        .from('seguimiento')
+        .update(camposPermitidos)
+        .eq('id_seguimiento', seguimientoActual.id_seguimiento)
+        .select()
+        .single();
 
-    if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Error al actualizar seguimiento:', updateError);
+        throw updateError;
+      }
+      if (!data) {
+        throw new Error('No se pudo actualizar el seguimiento');
+      }
+      seguimientoActualizado = data;
+      console.log('✅ Seguimiento actualizado:', seguimientoActualizado);
+    }
 
     // Actualizar OBS en paciente si se proporciona
-    if (cambios.obs !== undefined) {
+    if (obs !== undefined) {
       const { error: obsError } = await supabaseClient
         .from('paciente')
-        .update({ obs: cambios.obs })
+        .update({ obs: obs })
         .eq('id_paciente', seguimientoActualizado.id_paciente);
 
       if (obsError) throw obsError;
+      
+      // Registrar en auditoría el cambio de OBS
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      if (user) {
+        const { data: trabajador } = await supabaseClient
+          .from('trabajador')
+          .select('id_trabajador')
+          .eq('auth_uid', user.id)
+          .single();
+        
+        if (trabajador) {
+          await supabaseClient.from('auditoria').insert({
+            id_seguimiento: seguimientoActualizado.id_seguimiento,
+            id_trabajador: trabajador.id_trabajador,
+            campo_modificado: 'obs',
+            valor_nuevo: 'Observación modificada',
+            valor_modificado: 'Observación anterior'
+          });
+        }
+      }
     }
 
     return new Response(
       JSON.stringify({
+        data: seguimientoActualizado,
         success: true,
-        seguimiento: seguimientoActualizado,
         message: 'Seguimiento actualizado exitosamente'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

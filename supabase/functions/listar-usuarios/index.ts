@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verificarAutenticacion, verificarRol } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,40 +13,25 @@ serve(async (req) => {
   }
 
   try {
-    const { userRole, incluir_archivados } = await req.json();
-
-    // Solo AdminJefe puede listar usuarios
-    if (userRole !== 'jefe') {
-      return new Response(
-        JSON.stringify({ error: 'No tienes permisos para ver la lista de usuarios' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    let query = supabaseClient
+    // Verificar autenticación y rol de jefe
+    const trabajador = await verificarAutenticacion(req, supabaseClient);
+    verificarRol(trabajador, ['jefe']);
+
+    // Para GET request, no hay body
+    const { data: usuarios, error } = await supabaseClient
       .from('trabajador')
       .select('id_trabajador, rut, rol, nombre, apellido, activo')
       .order('nombre');
 
-    // Por defecto, solo mostrar usuarios activos
-    if (!incluir_archivados) {
-      query = query.eq('activo', true);
-    }
-
-    const { data: usuarios, error } = await query;
-
     if (error) throw error;
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        usuarios
-      }),
+      JSON.stringify(usuarios),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

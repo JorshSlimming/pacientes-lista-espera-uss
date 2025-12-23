@@ -1,16 +1,26 @@
 import React, { useState } from 'react';
-import { pacientes, seguimientos, especialidades, comunas, origenes, instituciones, trabajadores } from '../mockData';
+import { pacientesService } from '../api';
+import { PacienteCompleto } from '../types';
 import { validarRut, formatearFecha, calcularEdad } from '../utils';
+import { useAuth } from '../AuthContext';
+import ModalHistorial from './ModalHistorial';
 import './BusquedaPaciente.css';
 
 const BusquedaPaciente: React.FC = () => {
+  const { hasRole } = useAuth();
   const [rutBusqueda, setRutBusqueda] = useState('');
-  const [pacienteEncontrado, setPacienteEncontrado] = useState<any>(null);
-  const [mostrarSoloPendientes, setMostrarSoloPendientes] = useState(false);
-  const [ordenFecha, setOrdenFecha] = useState<'asc' | 'desc'>('desc');
+  const [pacienteEncontrado, setPacienteEncontrado] = useState<PacienteCompleto | null>(null);
+  const [historialSeleccionado, setHistorialSeleccionado] = useState<{
+    idPaciente: number;
+    idSeguimiento: number;
+    nombrePaciente: string;
+    especialidad: string;
+  } | null>(null);
   const [error, setError] = useState('');
+  const [buscando, setBuscando] = useState(false);
+  const [ordenFechaDesc, setOrdenFechaDesc] = useState(true); // true = descendente (más reciente primero)
 
-  const buscarPaciente = () => {
+  const buscarPaciente = async () => {
     setError('');
     
     if (!rutBusqueda.trim()) {
@@ -26,45 +36,18 @@ const BusquedaPaciente: React.FC = () => {
       return;
     }
 
-    // Buscar paciente comparando RUTs normalizados
-    const paciente = pacientes.find(p => p.rut.replace(/\./g, '').replace(/-/g, '') === rutNormalizado);
+    setBuscando(true);
+    const { data, error: apiError } = await pacientesService.buscarPorRut(rutNormalizado);
+    setBuscando(false);
     
-    if (!paciente) {
-      setError('No se encontró ningún paciente con ese RUT');
+    if (apiError || !data) {
+      setError(apiError || 'No se encontró ningún paciente con ese RUT');
       setPacienteEncontrado(null);
       return;
     }
 
-    // Obtener todos los seguimientos del paciente
-    const seguimientosPaciente = seguimientos.filter(s => s.id_paciente === paciente.rut);
-    
-    const pacienteCompleto = {
-      ...paciente,
-      seguimientos: seguimientosPaciente.map(seg => {
-        const esp = especialidades.find(e => e.id === seg.id_especialidad);
-        const ejec = trabajadores.find(t => t.rut === seg.rut_ejecutivo_ingreso);
-        return {
-          ...seg,
-          especialidad: esp,
-          ejecutivo: ejec,
-        };
-      }),
-      comuna: comunas.find(c => c.id === paciente.id_comuna),
-      origen: origenes.find(o => o.id === paciente.id_origen),
-      institucion: instituciones.find(i => i.id === paciente.id_institucion_convenio),
-    };
-
-    setPacienteEncontrado(pacienteCompleto);
+    setPacienteEncontrado(data);
   };
-
-  const seguimientosFiltrados = pacienteEncontrado?.seguimientos.filter((seg: any) => {
-    if (mostrarSoloPendientes) return seg.agendado === 'no';
-    return true;
-  }).sort((a: any, b: any) => {
-    const fechaA = new Date(a.fecha_ingreso).getTime();
-    const fechaB = new Date(b.fecha_ingreso).getTime();
-    return ordenFecha === 'desc' ? fechaB - fechaA : fechaA - fechaB;
-  }) || [];
 
   const obtenerEstadoLlamadas = (seg: any) => {
     const { fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada } = seg;
@@ -81,11 +64,12 @@ const BusquedaPaciente: React.FC = () => {
             type="text"
             value={rutBusqueda}
             onChange={(e) => setRutBusqueda(e.target.value)}
-            placeholder="Ingrese RUT (ej: 12345678-9 o 123456789)"
+            placeholder="Ingrese RUT (ej: 12345678-9)"
             onKeyPress={(e) => e.key === 'Enter' && buscarPaciente()}
+            disabled={buscando}
           />
-          <button onClick={buscarPaciente} className="btn-buscar">
-            Buscar
+          <button onClick={buscarPaciente} className="btn-buscar" disabled={buscando}>
+            {buscando ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
         {error && <div className="error-busqueda">{error}</div>}
@@ -110,19 +94,19 @@ const BusquedaPaciente: React.FC = () => {
               </div>
               <div className="info-item">
                 <label>Correo Electrónico</label>
-                <div className="info-value">{pacienteEncontrado.contacto.correo}</div>
+                <div className="info-value">{pacienteEncontrado.contacto?.correo || 'N/A'}</div>
               </div>
               <div className="info-item">
                 <label>Teléfono 1</label>
-                <div className="info-value telefono">{pacienteEncontrado.contacto.primer_celular}</div>
+                <div className="info-value telefono">{pacienteEncontrado.contacto?.primer_celular || 'N/A'}</div>
               </div>
               <div className="info-item">
                 <label>Teléfono 2</label>
-                <div className="info-value telefono">{pacienteEncontrado.contacto.segundo_celular}</div>
+                <div className="info-value telefono">{pacienteEncontrado.contacto?.segundo_celular || 'N/A'}</div>
               </div>
               <div className="info-item">
                 <label>Dirección</label>
-                <div className="info-value">{pacienteEncontrado.contacto.direccion}</div>
+                <div className="info-value">{pacienteEncontrado.contacto?.direccion || 'N/A'}</div>
               </div>
               <div className="info-item">
                 <label>Comuna</label>
@@ -149,40 +133,55 @@ const BusquedaPaciente: React.FC = () => {
 
           <div className="agendamientos-card">
             <div className="agendamientos-header">
-              <h3>Agendamientos ({pacienteEncontrado.seguimientos.length})</h3>
-              <div className="agendamientos-controles">
-                <select 
-                  className="select-orden"
-                  value={ordenFecha}
-                  onChange={(e) => setOrdenFecha(e.target.value as 'asc' | 'desc')}
+              <h3>Agendamientos ({pacienteEncontrado.seguimiento?.length || 0})</h3>
+              {pacienteEncontrado.seguimiento && pacienteEncontrado.seguimiento.length > 1 && (
+                <button 
+                  onClick={() => setOrdenFechaDesc(!ordenFechaDesc)}
+                  className="btn-ordenar"
+                  title={ordenFechaDesc ? 'Ordenar: Más antiguo primero' : 'Ordenar: Más reciente primero'}
                 >
-                  <option value="desc">Más reciente primero</option>
-                  <option value="asc">Más antiguo primero</option>
-                </select>
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={mostrarSoloPendientes}
-                    onChange={(e) => setMostrarSoloPendientes(e.target.checked)}
-                  />
-                  <span>Solo pendientes</span>
-                </label>
-              </div>
+                  {ordenFechaDesc ? '↓ Reciente' : '↑ Antiguo'}
+                </button>
+              )}
             </div>
 
-            {seguimientosFiltrados.length === 0 ? (
-              <div className="no-data">No hay agendamientos{mostrarSoloPendientes ? ' pendientes' : ''}</div>
+            {!pacienteEncontrado.seguimiento || pacienteEncontrado.seguimiento.length === 0 ? (
+              <div className="no-data">Sin información de seguimiento</div>
             ) : (
               <div className="agendamientos-lista">
-                {seguimientosFiltrados.map((seg: any) => (
-                  <div key={seg.id} className="agendamiento-item">
+                {[...pacienteEncontrado.seguimiento]
+                  .sort((a: any, b: any) => {
+                    const fechaA = new Date(a.fecha_ingreso).getTime();
+                    const fechaB = new Date(b.fecha_ingreso).getTime();
+                    return ordenFechaDesc ? fechaB - fechaA : fechaA - fechaB;
+                  })
+                  .map((seg: any, index: number) => (
+                  <div key={seg.id_seguimiento || index} className="agendamiento-item">
                     <div className="agendamiento-header-item">
                       <div className="agendamiento-especialidad">
                         {seg.especialidad?.nombre || 'Especialidad no encontrada'}
                       </div>
-                      <span className={`badge-agendado agendado-${seg.agendado}`}>
-                        {seg.agendado === 'si' ? 'AGENDADO' : seg.agendado === 'no' ? 'PENDIENTE' : 'DESISTE'}
-                      </span>
+                      <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                        <span className={`badge-agendado agendado-${seg.agendado}`}>
+                          {seg.agendado === 'si' ? 'AGENDADO' : seg.agendado === 'no' ? 'PENDIENTE' : 'DESISTE'}
+                        </span>
+                        {hasRole(['jefe']) && (
+                          <button
+                            onClick={() => {
+                              setHistorialSeleccionado({
+                                idPaciente: pacienteEncontrado.id_paciente,
+                                idSeguimiento: seg.id_seguimiento,
+                                nombrePaciente: `${pacienteEncontrado.nombre} ${pacienteEncontrado.primer_apellido} ${pacienteEncontrado.segundo_apellido}`,
+                                especialidad: seg.especialidad?.nombre || 'Especialidad no encontrada'
+                              });
+                            }}
+                            className="btn-historial-small"
+                            title="Ver historial de cambios"
+                          >
+                            Historial
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="agendamiento-detalles">
@@ -234,11 +233,22 @@ const BusquedaPaciente: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* Modal de historial */}
+      {historialSeleccionado && (
+        <ModalHistorial
+          idPaciente={historialSeleccionado.idPaciente}
+          idSeguimiento={historialSeleccionado.idSeguimiento}
+          nombrePaciente={historialSeleccionado.nombrePaciente}
+          especialidad={historialSeleccionado.especialidad}
+          onClose={() => setHistorialSeleccionado(null)}
+        />
       )}
     </div>
   );

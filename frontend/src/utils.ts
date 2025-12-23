@@ -31,9 +31,21 @@ export const validarRut = (rut: string): boolean => {
   return dv === dvEsperado;
 };
 
+// Validar formato de RUT con guion
+export const validarFormatoRut = (rut: string): boolean => {
+  // Debe tener el formato: numero-digito
+  const regex = /^[0-9]+-[0-9kK]$/;
+  return regex.test(rut);
+};
+
+// Limpiar RUT (eliminar puntos y guión) - para enviar a BD
+export const limpiarRut = (rut: string): string => {
+  return rut.replace(/\./g, '').replace(/-/g, '');
+};
+
 // Formatear RUT (solo con guion, sin puntos)
 export const formatearRut = (rut: string): string => {
-  const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
+  const rutLimpio = limpiarRut(rut);
   
   if (rutLimpio.length <= 1) return rutLimpio;
   

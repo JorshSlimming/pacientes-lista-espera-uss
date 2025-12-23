@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import { adminService, EstadisticasHistoricas } from '../api/admin.service';
 import NuevoPacienteForm from './NuevoPacienteForm';
 import ListaEspecialidades from './ListaEspecialidades';
 import BusquedaPaciente from './BusquedaPaciente';
 import Administracion from './Administracion';
 import GestionUsuarios from './GestionUsuarios';
-import { seguimientos } from '../mockData';
 import './Layout.css';
 
 type Vista = 'nuevo' | 'especialidades' | 'busqueda' | 'administracion' | 'usuarios';
@@ -14,20 +14,27 @@ const Layout: React.FC = () => {
   const { usuario, logout, hasRole } = useAuth();
   const [vistaActiva, setVistaActiva] = useState<Vista>('nuevo');
   const [actualizarKey, setActualizarKey] = useState(0);
+  const [estadisticas, setEstadisticas] = useState<EstadisticasHistoricas | null>(null);
+
+  useEffect(() => {
+    if (hasRole(['jefe'])) {
+      cargarEstadisticas();
+    }
+  }, [hasRole]);
+
+  const cargarEstadisticas = async () => {
+    const { data } = await adminService.obtenerEstadisticasHistoricas();
+    if (data) {
+      setEstadisticas(data);
+    }
+  };
 
   const handleActualizar = () => {
     setActualizarKey(prev => prev + 1);
+    if (hasRole(['jefe'])) {
+      cargarEstadisticas();
+    }
   };
-
-  // Calcular estadísticas globales para KPIs del encabezado
-  const estadisticas = useMemo(() => {
-    return {
-      totalIngresos: seguimientos.length,
-      pendientes: seguimientos.filter(s => s.agendado === 'no').length,
-      agendados: seguimientos.filter(s => s.agendado === 'si').length,
-      desistidos: seguimientos.filter(s => s.agendado === 'desiste').length,
-    };
-  }, [actualizarKey]);
 
   return (
     <div className="layout">
@@ -38,34 +45,34 @@ const Layout: React.FC = () => {
             <span className="header-subtitle">Universidad San Sebastián</span>
           </div>
 
-          {/* KPIs en el encabezado - solo para jefes */}
+          {/* KPIs en el encabezado */}
           {hasRole(['jefe']) && (
             <div className="header-kpis">
               <div className="header-kpi kpi-primary">
                 <span className="header-kpi-icon">📋</span>
                 <div className="header-kpi-info">
-                  <span className="header-kpi-value">{estadisticas.totalIngresos}</span>
+                  <span className="header-kpi-value">{estadisticas?.total_ingresos || '-'}</span>
                   <span className="header-kpi-label">Total Pacientes</span>
                 </div>
               </div>
               <div className="header-kpi kpi-warning">
                 <span className="header-kpi-icon">⏳</span>
                 <div className="header-kpi-info">
-                  <span className="header-kpi-value">{estadisticas.pendientes}</span>
+                  <span className="header-kpi-value">{estadisticas?.pendientes || '-'}</span>
                   <span className="header-kpi-label">Por Agendar</span>
                 </div>
               </div>
               <div className="header-kpi kpi-success">
                 <span className="header-kpi-icon">✅</span>
                 <div className="header-kpi-info">
-                  <span className="header-kpi-value">{estadisticas.agendados}</span>
+                  <span className="header-kpi-value">{estadisticas?.agendados || '-'}</span>
                   <span className="header-kpi-label">Ya Agendados</span>
                 </div>
               </div>
               <div className="header-kpi kpi-danger">
                 <span className="header-kpi-icon">✗</span>
                 <div className="header-kpi-info">
-                  <span className="header-kpi-value">{estadisticas.desistidos}</span>
+                  <span className="header-kpi-value">{estadisticas?.desistidos || '-'}</span>
                   <span className="header-kpi-label">Desistieron</span>
                 </div>
               </div>

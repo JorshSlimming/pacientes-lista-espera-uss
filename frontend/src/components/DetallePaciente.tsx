@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import { PacienteCompleto } from '../types';
 import { formatearFecha, calcularEdad } from '../utils';
-import { auditorias, seguimientos } from '../mockData';
+import { pacientesService } from '../api';
 import './DetallePaciente.css';
 
 interface Props {
@@ -12,102 +12,211 @@ interface Props {
 }
 
 const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) => {
-  const { usuario, hasRole } = useAuth();
+  const { hasRole } = useAuth();
   const [tabActiva, setTabActiva] = useState<'info' | 'seguimiento' | 'auditoria'>('info');
-  const [obs, setObs] = useState(paciente.obs);
+  const [obs, setObs] = useState(paciente.obs || '');
   const [editandoObs, setEditandoObs] = useState(false);
+  const [historial, setHistorial] = useState<any[]>([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  
+  // Estados para datos actualizados del paciente
+  const [datosActuales, setDatosActuales] = useState<PacienteCompleto>(paciente);
+  
+  // Estados para editar fechas (con hora)
+  const horaInicial = new Date().toTimeString().slice(0, 5);
+  const [fecha1, setFecha1] = useState(paciente.seguimiento.fecha_primera_llamada ? `${paciente.seguimiento.fecha_primera_llamada}T${horaInicial}` : '');
+  const [fecha2, setFecha2] = useState(paciente.seguimiento.fecha_segunda_llamada ? `${paciente.seguimiento.fecha_segunda_llamada}T${horaInicial}` : '');
+  const [fecha3, setFecha3] = useState(paciente.seguimiento.fecha_tercera_llamada ? `${paciente.seguimiento.fecha_tercera_llamada}T${horaInicial}` : '');
+  const [fechaCitacion, setFechaCitacion] = useState(paciente.seguimiento.fecha_citacion || '');
+  const [agendado, setAgendado] = useState(paciente.seguimiento.agendado);
+  const [guardando, setGuardando] = useState(false);
 
-  const auditoriaPaciente = auditorias.filter(a => a.id_paciente === paciente.rut);
-
-  const registrarLlamada = (tipo: 'primera' | 'segunda' | 'tercera') => {
-    const fechaActual = new Date().toISOString().split('T')[0];
-    const seg = seguimientos.find(s => s.id_paciente === paciente.rut);
-    
-    if (!seg) return;
-
-    if (tipo === 'primera') {
-      seg.fecha_primera_llamada = fechaActual;
-    } else if (tipo === 'segunda') {
-      seg.fecha_segunda_llamada = fechaActual;
-    } else if (tipo === 'tercera') {
-      seg.fecha_tercera_llamada = fechaActual;
-      if (!seg.agendado) {
-        alert('Se recomienda agregar una observación indicando "No contactable después de 3 intentos"');
+  // Recargar datos del paciente al abrir el modal
+  useEffect(() => {
+    const cargarDatosActualizados = async () => {
+      const { data, error } = await pacientesService.buscarPorRut(paciente.rut);
+      if (!error && data) {
+        console.log('🔍 Datos cargados del paciente:', data);
+        console.log('🔍 Seguimiento raw:', data.seguimiento);
+        
+        // El seguimiento puede venir como array o como objeto
+        const seguimiento = Array.isArray(data.seguimiento) 
+          ? data.seguimiento.find((s: any) => s.id_seguimiento === paciente.seguimiento.id_seguimiento) || data.seguimiento[0]
+          : data.seguimiento;
+        
+        console.log('🔍 Seguimiento seleccionado:', seguimiento);
+        
+        // Actualizar datosActuales con el seguimiento correcto
+        const datosActualizados = {
+          ...data,
+          seguimiento: seguimiento
+        };
+        
+        setDatosActuales(datosActualizados);
+        setObs(data.obs || '');
+        
+        // Convertir fechas al formato datetime-local (YYYY-MM-DDTHH:MM)
+        const ahora = new Date();
+        const horaActual = ahora.toTimeString().slice(0, 5);
+        
+        const f1 = seguimiento?.fecha_primera_llamada;
+        const f2 = seguimiento?.fecha_segunda_llamada;
+        const f3 = seguimiento?.fecha_tercera_llamada;
+        
+        console.log('📅 Fechas del backend:', { f1, f2, f3 });
+        
+        setFecha1(f1 ? `${f1}T${horaActual}` : '');
+        setFecha2(f2 ? `${f2}T${horaActual}` : '');
+        setFecha3(f3 ? `${f3}T${horaActual}` : '');
+        
+        console.log('📅 Fechas seteadas:', {
+          fecha1: f1 ? `${f1}T${horaActual}` : '',
+          fecha2: f2 ? `${f2}T${horaActual}` : '',
+          fecha3: f3 ? `${f3}T${horaActual}` : ''
+        });
+        
+        setFechaCitacion(seguimiento?.fecha_citacion || '');
+        setAgendado(seguimiento?.agendado || 'no');
       }
+    };
+    cargarDatosActualizados();
+  }, [paciente.rut, paciente.seguimiento.id_seguimiento]);
+
+  useEffect(() => {
+    if (tabActiva === 'auditoria' && hasRole(['jefe'])) {
+      cargarHistorial();
     }
+  }, [tabActiva]);
 
-    // Registrar en auditoría
-    auditorias.push({
-      id: auditorias.length + 1,
-      fecha_modificacion: new Date().toISOString(),
-      campo_modificado: `fecha_${tipo}_llamada`,
-      valor_nuevo: fechaActual,
-      valor_modificado: 'null',
-      id_trabajador: usuario?.rut || '',
-      id_paciente: paciente.rut,
-    });
-
-    onActualizar();
+  const cargarHistorial = async () => {
+    setCargandoHistorial(true);
+    try {
+      const response = await pacientesService.obtenerHistorialCambios(
+        paciente.id_paciente,
+        datosActuales.seguimiento?.id_seguimiento
+      );
+      const { data, error } = response;
+      if (error) {
+        console.error('❌ Error al cargar historial:', error);
+        alert(`Error al cargar historial: ${error}`);
+        setHistorial([]);
+        return;
+      }
+      // El backend devuelve { success: true, historial: [...] }
+      const historialArray = data?.historial || data?.data || data || [];
+      if (Array.isArray(historialArray)) {
+        setHistorial(historialArray);
+      } else {
+        console.error('❌ Historial no es array:', data);
+        setHistorial([]);
+      }
+    } catch (err: any) {
+      console.error('❌ Error en cargarHistorial:', err);
+      alert(`Error: ${err.message || 'Error desconocido'}`);
+      setHistorial([]);
+    } finally {
+      setCargandoHistorial(false);
+    }
   };
 
-  const marcarAgendado = () => {
-    const seg = seguimientos.find(s => s.id_paciente === paciente.rut);
+  const actualizarFechaLlamada = async (tipo: 'primera' | 'segunda' | 'tercera', fechaCompleta: string | null) => {
+    setGuardando(true);
     
-    if (!seg) return;
+    const campoFecha = 
+      tipo === 'primera' ? 'fecha_primera_llamada' :
+      tipo === 'segunda' ? 'fecha_segunda_llamada' :
+      'fecha_tercera_llamada';
 
-    if (!seg.fecha_primera_llamada) {
+    // Extraer solo la fecha (YYYY-MM-DD) del datetime-local
+    const soloFecha = fechaCompleta ? fechaCompleta.split('T')[0] : null;
+
+    const { error } = await pacientesService.actualizarSeguimiento({
+      id_seguimiento: datosActuales.seguimiento.id_seguimiento,
+      id_paciente: datosActuales.id_paciente,
+      [campoFecha]: soloFecha
+    });
+
+    setGuardando(false);
+
+    if (error) {
+      alert(`Error al actualizar llamada: ${error}`);
+      return;
+    }
+
+    // Actualizar estado local
+    if (tipo === 'primera') setFecha1(fechaCompleta || '');
+    if (tipo === 'segunda') setFecha2(fechaCompleta || '');
+    if (tipo === 'tercera') setFecha3(fechaCompleta || '');
+    
+    // Actualizar datosActuales
+    setDatosActuales(prev => ({
+      ...prev,
+      seguimiento: {
+        ...prev.seguimiento,
+        [campoFecha]: soloFecha
+      }
+    }));
+    
+    if (tipo === 'tercera' && !soloFecha && agendado !== 'si') {
+      alert('Se recomienda agregar una observación indicando "No contactable después de 3 intentos"');
+    }
+  };
+
+  const marcarAgendado = async () => {
+    if (!fecha1) {
       alert('Debe registrar al menos una llamada antes de agendar');
       return;
     }
 
-    const fechaCitacion = prompt('Ingrese fecha de citación (YYYY-MM-DD):');
-    if (!fechaCitacion) return;
+    const nuevaFechaCitacion = prompt('Ingrese fecha de citación (YYYY-MM-DD):');
+    if (!nuevaFechaCitacion) return;
 
-    const valorAnterior = seg.agendado;
-    seg.agendado = 'si';
-    seg.fecha_citacion = fechaCitacion;
+    setGuardando(true);
 
-    // Registrar en auditoría
-    auditorias.push({
-      id: auditorias.length + 1,
-      fecha_modificacion: new Date().toISOString(),
-      campo_modificado: 'agendado',
-      valor_nuevo: 'si',
-      valor_modificado: valorAnterior,
-      id_trabajador: usuario?.rut || '',
-      id_paciente: paciente.rut,
+    const { error } = await pacientesService.actualizarSeguimiento({
+      id_seguimiento: datosActuales.seguimiento.id_seguimiento,
+      id_paciente: datosActuales.id_paciente,
+      agendado: 'si',
+      fecha_citacion: nuevaFechaCitacion
     });
 
-    auditorias.push({
-      id: auditorias.length + 1,
-      fecha_modificacion: new Date().toISOString(),
-      campo_modificado: 'fecha_citacion',
-      valor_nuevo: fechaCitacion,
-      valor_modificado: seg.fecha_citacion || 'null',
-      id_trabajador: usuario?.rut || '',
-      id_paciente: paciente.rut,
-    });
+    setGuardando(false);
 
-    onActualizar();
+    if (error) {
+      alert(`Error al marcar como agendado: ${error}`);
+      return;
+    }
+
+    setAgendado('si');
+    setFechaCitacion(nuevaFechaCitacion);
+    setDatosActuales(prev => ({
+      ...prev,
+      seguimiento: {
+        ...prev.seguimiento,
+        agendado: 'si',
+        fecha_citacion: nuevaFechaCitacion
+      }
+    }));
   };
 
-  const guardarObservacion = () => {
-    const valorAnterior = paciente.obs;
-    paciente.obs = obs;
-
-    // Registrar en auditoría
-    auditorias.push({
-      id: auditorias.length + 1,
-      fecha_modificacion: new Date().toISOString(),
-      campo_modificado: 'obs',
-      valor_nuevo: obs,
-      valor_modificado: valorAnterior,
-      id_trabajador: usuario?.rut || '',
-      id_paciente: paciente.rut,
+  const guardarObservacion = async () => {
+    setGuardando(true);
+    
+    const { error } = await pacientesService.actualizarSeguimiento({
+      id_seguimiento: datosActuales.seguimiento.id_seguimiento,
+      id_paciente: datosActuales.id_paciente,
+      obs
     });
 
+    setGuardando(false);
+
+    if (error) {
+      alert(`Error al guardar observación: ${error}`);
+      return;
+    }
+
     setEditandoObs(false);
-    onActualizar();
+    setDatosActuales(prev => ({ ...prev, obs }));
   };
 
   return (
@@ -122,12 +231,14 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
           <button
             className={`tab ${tabActiva === 'info' ? 'tab-active' : ''}`}
             onClick={() => setTabActiva('info')}
+            data-tab="info"
           >
             Información
           </button>
           <button
             className={`tab ${tabActiva === 'seguimiento' ? 'tab-active' : ''}`}
             onClick={() => setTabActiva('seguimiento')}
+            data-tab="seguimiento"
           >
             Registro de Llamadas
           </button>
@@ -135,6 +246,7 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
             <button
               className={`tab ${tabActiva === 'auditoria' ? 'tab-active' : ''}`}
               onClick={() => setTabActiva('auditoria')}
+              data-tab="auditoria"
             >
               Historial de Cambios
             </button>
@@ -153,27 +265,27 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
                 </div>
                 <div className="info-item">
                   <label>Dirección</label>
-                  <div className="info-value">{paciente.contacto.direccion}</div>
+                  <div className="info-value">{paciente.contacto?.direccion || 'N/A'}</div>
                 </div>
                 <div className="info-item">
                   <label>Comuna</label>
-                  <div className="info-value">{paciente.comuna.nombre}</div>
+                  <div className="info-value">{paciente.comuna?.nombre || 'N/A'}</div>
                 </div>
                 <div className="info-item">
                   <label>Correo Electrónico</label>
-                  <div className="info-value">{paciente.contacto.correo}</div>
+                  <div className="info-value">{paciente.contacto?.correo || 'N/A'}</div>
                 </div>
                 <div className="info-item">
                   <label>Celular 1</label>
-                  <div className="info-value">{paciente.contacto.primer_celular}</div>
+                  <div className="info-value">{paciente.contacto?.primer_celular || 'N/A'}</div>
                 </div>
                 <div className="info-item">
                   <label>Celular 2</label>
-                  <div className="info-value">{paciente.contacto.segundo_celular}</div>
+                  <div className="info-value">{paciente.contacto?.segundo_celular || 'N/A'}</div>
                 </div>
                 <div className="info-item">
                   <label>Origen</label>
-                  <div className="info-value">{paciente.origen.nombre}</div>
+                  <div className="info-value">{paciente.origen?.nombre || 'N/A'}</div>
                 </div>
                 {paciente.institucion && (
                   <div className="info-item">
@@ -185,12 +297,12 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
                 )}
                 <div className="info-item">
                   <label>Especialidad</label>
-                  <div className="info-value">{paciente.especialidad.nombre}</div>
+                  <div className="info-value">{paciente.especialidad?.nombre || 'N/A'}</div>
                 </div>
                 <div className="info-item">
                   <label>Ejecutivo de Ingreso</label>
                   <div className="info-value">
-                    {paciente.ejecutivo.nombre} {paciente.ejecutivo.apellido}
+                    {paciente.ejecutivo ? `${paciente.ejecutivo.nombre} ${paciente.ejecutivo.apellido}` : 'N/A'}
                   </div>
                 </div>
                 <div className="info-item">
@@ -238,53 +350,149 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
                 <div className="llamadas-grid">
                   <div className="llamada-card">
                     <div className="llamada-numero">1ra Llamada</div>
-                    <div className="llamada-fecha">
-                      {paciente.seguimiento.fecha_primera_llamada 
-                        ? formatearFecha(paciente.seguimiento.fecha_primera_llamada)
-                        : 'No registrada'}
+                    <input
+                      type="datetime-local"
+                      value={fecha1}
+                      onChange={(e) => setFecha1(e.target.value)}
+                      className="fecha-input"
+                      disabled={guardando}
+                    />
+                    <div className="llamada-actions">
+                      {fecha1 && (
+                        <>
+                          <button 
+                            onClick={() => actualizarFechaLlamada('primera', fecha1)}
+                            className="btn-llamada btn-guardar"
+                            disabled={guardando || fecha1.split('T')[0] === datosActuales.seguimiento.fecha_primera_llamada}
+                          >
+                            Guardar
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (confirm('¿Eliminar esta fecha de llamada?')) {
+                                actualizarFechaLlamada('primera', null);
+                              }
+                            }}
+                            className="btn-llamada btn-eliminar"
+                            disabled={guardando}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
+                      {!fecha1 && (
+                        <button 
+                          onClick={() => {
+                            const ahora = new Date();
+                            const fechaHora = `${ahora.toISOString().slice(0,16)}`;
+                            setFecha1(fechaHora);
+                            actualizarFechaLlamada('primera', fechaHora);
+                          }}
+                          className="btn-llamada"
+                          disabled={guardando}
+                        >
+                          Registrar Ahora
+                        </button>
+                      )}
                     </div>
-                    {!paciente.seguimiento.fecha_primera_llamada && (
-                      <button 
-                        onClick={() => registrarLlamada('primera')}
-                        className="btn-llamada"
-                      >
-                        Registrar
-                      </button>
-                    )}
                   </div>
 
                   <div className="llamada-card">
                     <div className="llamada-numero">2da Llamada</div>
-                    <div className="llamada-fecha">
-                      {paciente.seguimiento.fecha_segunda_llamada 
-                        ? formatearFecha(paciente.seguimiento.fecha_segunda_llamada)
-                        : 'No registrada'}
+                    <input
+                      type="datetime-local"
+                      value={fecha2}
+                      onChange={(e) => setFecha2(e.target.value)}
+                      className="fecha-input"
+                      disabled={guardando || !fecha1}
+                    />
+                    <div className="llamada-actions">
+                      {fecha2 && (
+                        <>
+                          <button 
+                            onClick={() => actualizarFechaLlamada('segunda', fecha2)}
+                            className="btn-llamada btn-guardar"
+                            disabled={guardando || fecha2.split('T')[0] === datosActuales.seguimiento.fecha_segunda_llamada}
+                          >
+                            Guardar
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (confirm('¿Eliminar esta fecha de llamada?')) {
+                                actualizarFechaLlamada('segunda', null);
+                              }
+                            }}
+                            className="btn-llamada btn-eliminar"
+                            disabled={guardando}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
+                      {!fecha2 && fecha1 && (
+                        <button 
+                          onClick={() => {
+                            const ahora = new Date();
+                            const fechaHora = `${ahora.toISOString().slice(0,16)}`;
+                            setFecha2(fechaHora);
+                            actualizarFechaLlamada('segunda', fechaHora);
+                          }}
+                          className="btn-llamada"
+                          disabled={guardando}
+                        >
+                          Registrar Ahora
+                        </button>
+                      )}
                     </div>
-                    {paciente.seguimiento.fecha_primera_llamada && !paciente.seguimiento.fecha_segunda_llamada && (
-                      <button 
-                        onClick={() => registrarLlamada('segunda')}
-                        className="btn-llamada"
-                      >
-                        Registrar
-                      </button>
-                    )}
                   </div>
 
                   <div className="llamada-card">
                     <div className="llamada-numero">3ra Llamada</div>
-                    <div className="llamada-fecha">
-                      {paciente.seguimiento.fecha_tercera_llamada 
-                        ? formatearFecha(paciente.seguimiento.fecha_tercera_llamada)
-                        : 'No registrada'}
+                    <input
+                      type="datetime-local"
+                      value={fecha3}
+                      onChange={(e) => setFecha3(e.target.value)}
+                      className="fecha-input"
+                      disabled={guardando || !fecha2}
+                    />
+                    <div className="llamada-actions">
+                      {fecha3 && (
+                        <>
+                          <button 
+                            onClick={() => actualizarFechaLlamada('tercera', fecha3)}
+                            className="btn-llamada btn-guardar"
+                            disabled={guardando || fecha3.split('T')[0] === datosActuales.seguimiento.fecha_tercera_llamada}
+                          >
+                            Guardar
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (confirm('¿Eliminar esta fecha de llamada?')) {
+                                actualizarFechaLlamada('tercera', null);
+                              }
+                            }}
+                            className="btn-llamada btn-eliminar"
+                            disabled={guardando}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      )}
+                      {!fecha3 && fecha2 && (
+                        <button 
+                          onClick={() => {
+                            const ahora = new Date();
+                            const fechaHora = `${ahora.toISOString().slice(0,16)}`;
+                            setFecha3(fechaHora);
+                            actualizarFechaLlamada('tercera', fechaHora);
+                          }}
+                          className="btn-llamada"
+                          disabled={guardando}
+                        >
+                          Registrar Ahora
+                        </button>
+                      )}
                     </div>
-                    {paciente.seguimiento.fecha_segunda_llamada && !paciente.seguimiento.fecha_tercera_llamada && (
-                      <button 
-                        onClick={() => registrarLlamada('tercera')}
-                        className="btn-llamada"
-                      >
-                        Registrar
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -293,7 +501,9 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
 
           {tabActiva === 'auditoria' && (
             <div className="auditoria-section">
-              {auditoriaPaciente.length === 0 ? (
+              {cargandoHistorial ? (
+                <div className="loading"><div className="spinner"></div> Cargando historial...</div>
+              ) : historial.length === 0 ? (
                 <div className="no-data">No hay cambios registrados para este paciente</div>
               ) : (
                 <table className="tabla-auditoria">
@@ -307,10 +517,10 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
                     </tr>
                   </thead>
                   <tbody>
-                    {auditoriaPaciente.map(a => (
-                      <tr key={a.id}>
+                    {historial.map((a, idx) => (
+                      <tr key={idx}>
                         <td>{new Date(a.fecha_modificacion).toLocaleString('es-CL')}</td>
-                        <td>{a.id_trabajador}</td>
+                        <td>{a.trabajador ? `${a.trabajador.nombre} ${a.trabajador.apellido}` : 'Sistema'}</td>
                         <td>{a.campo_modificado}</td>
                         <td>{a.valor_modificado || '(vacío)'}</td>
                         <td>{a.valor_nuevo || '(vacío)'}</td>

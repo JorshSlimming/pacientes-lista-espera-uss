@@ -267,6 +267,24 @@
   box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 }
 
+.btn-historial {
+  padding: 0.5rem 0.75rem;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.btn-historial:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
 .filtro-item {
   display: flex;
   flex-direction: column;
@@ -353,4 +371,35 @@
 .btn-orden:hover {
   background: #e0e0e0;
   border-color: #667eea;
+}
+
+/* Paginación */
+.paginacion-container {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+  padding: 1rem;
+}
+
+.btn-cargar-mas {
+  padding: 0.75rem 2rem;
+  background: #495057;
+  color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-cargar-mas:hover:not(:disabled) {
+  background: #343a40;
+  border-color: #adb5bd;
+}
+
+.btn-cargar-mas:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #6c757d;
 }

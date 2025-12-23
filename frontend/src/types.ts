@@ -10,10 +10,12 @@ export interface Trabajador {
   apellido: string;
   clave?: string;
   activo?: boolean;
+  archivado?: boolean;
 }
 
 export interface Comuna {
-  id: number;
+  id_comuna?: number;
+  id?: number;
   nombre: string;
   codigo?: string;
   region?: string;
@@ -21,7 +23,8 @@ export interface Comuna {
 }
 
 export interface Origen {
-  id: number;
+  id_origen?: number;
+  id?: number;
   nombre: string;
   requiere_ci: boolean;
   descripcion?: string;
@@ -29,13 +32,17 @@ export interface Origen {
 }
 
 export interface InstitucionConvenio {
-  id: number;
+  id_institucion?: number;
+  id?: number;
   tipo: string;
   nombre: string;
   telefono?: string;
   email?: string;
   archivado?: boolean;
 }
+
+// Alias para compatibilidad
+export type Institucion = InstitucionConvenio;
 
 export interface Contacto {
   id: number;
@@ -46,7 +53,8 @@ export interface Contacto {
 }
 
 export interface Especialidad {
-  id: number;
+  id_especialidad?: number;
+  id?: number;
   nombre: string;
   parent_id: number | null;
   nivel: number;
@@ -82,13 +90,22 @@ export interface Seguimiento {
 }
 
 export interface Auditoria {
-  id: number;
-  fecha_modificacion: string;
-  campo_modificado: string;
-  valor_nuevo: string;
-  valor_modificado: string;
+  id_auditoria: number;
+  fecha_cambio: string;
+  cambios: {
+    agendado?: { anterior: string; nuevo: string };
+    fecha_primera_llamada?: { anterior: string | null; nuevo: string };
+    fecha_segunda_llamada?: { anterior: string | null; nuevo: string };
+    fecha_tercera_llamada?: { anterior: string | null; nuevo: string };
+    obs?: { anterior: string; nuevo: string };
+  };
+  usuario_modificador: {
+    nombre: string;
+    apellido: string;
+  };
   id_trabajador: number;
   id_paciente: number;
+  id_seguimiento: number;
 }
 
 export interface PacienteCompleto extends Paciente {

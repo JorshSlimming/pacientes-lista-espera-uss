@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verificarAutenticacion } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,22 +13,29 @@ serve(async (req) => {
   }
 
   try {
-    const { rut } = await req.json();
-
-    if (!rut) {
-      return new Response(
-        JSON.stringify({ error: 'RUT es requerido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        },
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! }
+        }
+      }
     );
+
+    // Verificar autenticación
+    await verificarAutenticacion(req, supabaseClient);
+
+    const { rut } = await req.json();
 
     // Limpiar RUT (quitar puntos y guiones)
     const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
+    
+    console.log('🔍 Buscando paciente:', { rutOriginal: rut, rutLimpio });
 
     // Buscar paciente con todos sus datos relacionados
     const { data: paciente, error: pacienteError } = await supabaseClient
@@ -38,13 +46,25 @@ serve(async (req) => {
         comuna:id_comuna (*),
         origen:id_origen (*),
         institucion:id_institucion_convenio (*),
-        seguimientos:seguimiento (
+        seguimiento (
           *,
-          especialidad:id_especialidad (*)
+          especialidad:id_especialidad (*),
+          ejecutivo:id_ejecutivo_ingreso (
+            id_trabajador,
+            rut,
+            nombre,
+            apellido
+          )
         )
       `)
       .eq('rut', rutLimpio)
       .single();
+
+    console.log('📊 Resultado búsqueda:', { 
+      encontrado: !!paciente, 
+      error: pacienteError?.message,
+      rut: rutLimpio 
+    });
 
     if (pacienteError || !paciente) {
       return new Response(
@@ -53,8 +73,9 @@ serve(async (req) => {
       );
     }
 
+    // Devolver el paciente con TODOS sus seguimientos
     return new Response(
-      JSON.stringify({ success: true, paciente }),
+      JSON.stringify(paciente),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

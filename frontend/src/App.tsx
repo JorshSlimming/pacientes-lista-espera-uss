@@ -5,7 +5,15 @@ import Layout from './components/Layout';
 import './App.css';
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div>Verificando sesión...</div>
+      </div>
+    );
+  }
 
   return isAuthenticated ? <Layout /> : <Login />;
 };

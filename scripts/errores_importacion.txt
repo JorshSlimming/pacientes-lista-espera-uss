@@ -1,3 +1,7 @@
+ERRORES ENCONTRADOS DURANTE EL PROCESAMIENTO
+================================================================================
+
+Línea 20: Nombre vacío - RUT 261362562
 Línea 25: RUT inválido o vacío - 
 Línea 41: RUT inválido o vacío - 
 Línea 44: RUT inválido o vacío - 254843997-*
@@ -15,12 +19,21 @@ Línea 373: RUT inválido o vacío -
 Línea 390: RUT inválido o vacío - 
 Línea 480: RUT inválido o vacío - 
 Línea 510: RUT inválido o vacío - 
+Línea 540: Primer apellido vacío - RUT 244696961
+Línea 545: Primer apellido vacío - RUT 270230032
 Línea 556: RUT inválido o vacío - 
 Línea 561: RUT inválido o vacío - 
+Línea 602: Primer apellido vacío - RUT 411909911
+Línea 607: Primer apellido vacío - RUT 255019422
+Línea 627: Primer apellido vacío - RUT 259597641
 Línea 632: RUT inválido o vacío - 
 Línea 638: RUT inválido o vacío - 
 Línea 643: RUT inválido o vacío - 
+Línea 652: Primer apellido vacío - RUT 248112956
+Línea 671: Primer apellido vacío - RUT 256972816
 Línea 672: RUT inválido o vacío - 
+Línea 674: Primer apellido vacío - RUT 244903436
+Línea 675: Primer apellido vacío - RUT 266617496
 Línea 696: RUT inválido o vacío - 
 Línea 697: RUT inválido o vacío - 
 Línea 726: RUT inválido o vacío - 
@@ -52,6 +65,7 @@ Línea 1585: RUT inválido o vacío -  
 Línea 1586: RUT inválido o vacío -  
 Línea 1587: RUT inválido o vacío - 
 Línea 1596: RUT inválido o vacío -  
+Línea 1647: Primer apellido vacío - RUT 191100239
 Línea 1687: RUT inválido o vacío - 100398704-k
 Línea 1689: RUT inválido o vacío - 
 Línea 1706: RUT inválido o vacío - 
@@ -76,3 +90,6 @@ Línea 2135: RUT inválido o vacío -
 Línea 2160: RUT inválido o vacío - 
 Línea 2225: RUT inválido o vacío - 
 Línea 2226: RUT inválido o vacío - 
+
+================================================================================
+Total de errores: 89

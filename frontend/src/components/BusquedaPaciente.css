@@ -2,6 +2,24 @@
   padding: 0;
 }
 
+.btn-historial-small {
+  padding: 0.4rem 0.6rem;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.btn-historial-small:hover {
+  background: #d97706;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
 .busqueda-header {
   margin-bottom: 2rem;
 }
@@ -251,6 +269,28 @@
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: 0.3px;
+}
+
+.btn-ordenar {
+  padding: 0.5rem 1rem;
+  background: white;
+  color: #2c3e50;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn-ordenar:hover {
+  background: #f8f9fa;
+  border-color: #0056b3;
+  color: #0056b3;
+  box-shadow: 0 1px 3px rgba(0, 86, 179, 0.15);
 }
 
 .checkbox-label {

@@ -12,63 +12,44 @@ serve(async (req) => {
   }
 
   try {
-    const { rut } = await req.json();
-
-    if (!rut) {
-      return new Response(
-        JSON.stringify({ error: 'RUT es requerido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    // Esta función NO requiere autenticación - solo devuelve catálogos públicos
+    // Usar SERVICE_ROLE_KEY para bypass de RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
-    // Limpiar RUT (quitar puntos y guiones)
-    const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
+    // Obtener todos los catálogos en paralelo (solo no archivados)
+    const [comunasRes, origenesRes, institucionesRes, especialidadesRes] = await Promise.all([
+      supabaseClient.from('comuna').select('*').eq('archivado', false).order('nombre'),
+      supabaseClient.from('origen').select('*').eq('archivado', false).order('nombre'),
+      supabaseClient.from('institucion_convenio').select('*').eq('archivado', false).order('nombre'),
+      supabaseClient.from('especialidad').select('*').eq('archivado', false).order('nombre')
+    ]);
 
-    const { data: paciente, error } = await supabaseClient
-      .from('paciente')
-      .select(`
-        id_paciente,
-        rut,
-        nombre,
-        primer_apellido,
-        segundo_apellido,
-        fecha_nacimiento,
-        contacto:id_contacto (
-          correo,
-          direccion,
-          primer_celular,
-          segundo_celular
-        )
-      `)
-      .eq('rut', rutLimpio)
-      .single();
-
-    if (error || !paciente) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          existe: false,
-          datos: null
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log('Comunas:', comunasRes.data?.length || 0, 'Error:', comunasRes.error);
+    console.log('Origenes:', origenesRes.data?.length || 0, 'Error:', origenesRes.error);
+    console.log('Instituciones:', institucionesRes.data?.length || 0, 'Error:', institucionesRes.error);
+    console.log('Especialidades:', especialidadesRes.data?.length || 0, 'Error:', especialidadesRes.error);
 
     return new Response(
       JSON.stringify({
-        success: true,
-        existe: true,
-        datos: paciente
+        comunas: comunasRes.data || [],
+        origenes: origenesRes.data || [],
+        instituciones: institucionesRes.data || [],
+        especialidades: especialidadesRes.data || []
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
+    console.error('Error en obtener-datos-autocompletar:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

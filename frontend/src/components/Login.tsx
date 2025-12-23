@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
 import './Login.css';
 
 const Login: React.FC = () => {
   const [rut, setRut] = useState('');
   const [clave, setClave] = useState('');
+  const [recordarSesion, setRecordarSesion] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Cargar credenciales guardadas al montar
+  useEffect(() => {
+    const credencialesGuardadas = localStorage.getItem('credenciales_guardadas');
+    if (credencialesGuardadas) {
+      try {
+        const { rut: rutGuardado, clave: claveGuardada } = JSON.parse(credencialesGuardadas);
+        setRut(rutGuardado || '');
+        setClave(claveGuardada || '');
+        setRecordarSesion(true);
+      } catch (e) {
+        console.error('Error al cargar credenciales:', e);
+      }
+    }
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -17,9 +34,19 @@ const Login: React.FC = () => {
       return;
     }
 
-    const success = login(rut, clave);
+    setLoading(true);
+    const { success, error: loginError } = await login(rut, clave);
+    setLoading(false);
+
     if (!success) {
-      setError('RUT o contraseña incorrectos');
+      setError(loginError || 'Error al iniciar sesión');
+    } else {
+      // Guardar credenciales si está marcado
+      if (recordarSesion) {
+        localStorage.setItem('credenciales_guardadas', JSON.stringify({ rut, clave }));
+      } else {
+        localStorage.removeItem('credenciales_guardadas');
+      }
     }
   };
 
@@ -38,6 +65,7 @@ const Login: React.FC = () => {
               value={rut}
               onChange={(e) => setRut(e.target.value)}
               placeholder="12345678-9"
+              disabled={loading}
             />
           </div>
 
@@ -49,23 +77,28 @@ const Login: React.FC = () => {
               value={clave}
               onChange={(e) => setClave(e.target.value)}
               placeholder="••••••••"
+              disabled={loading}
             />
+          </div>
+
+          <div className="form-group checkbox-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={recordarSesion}
+                onChange={(e) => setRecordarSesion(e.target.checked)}
+                disabled={loading}
+              />
+              <span>Recordar sesión</span>
+            </label>
           </div>
 
           {error && <div className="error-message">{error}</div>}
 
-          <button type="submit" className="btn-primary">
-            Iniciar Sesión
+          <button type="submit" className="btn-primary" disabled={loading}>
+            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
         </form>
-
-        <div className="login-help">
-          <p><strong>Usuarios de prueba:</strong></p>
-          <ul>
-            <li>Jefe: 23456789-0 / jefe123</li>
-            <li>Usuario: 34567890-1 / user123</li>
-          </ul>
-        </div>
       </div>
     </div>
   );

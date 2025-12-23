@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verificarAutenticacion } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,45 +13,26 @@ serve(async (req) => {
   }
 
   try {
-    const { rut } = await req.json();
-
-    if (!rut) {
-      return new Response(
-        JSON.stringify({ error: 'RUT es requerido' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    // Limpiar RUT (quitar puntos y guiones)
-    const rutLimpio = rut.replace(/\./g, '').replace(/-/g, '');
+    // Verificar autenticación - esto ya retorna los datos del trabajador
+    const trabajador = await verificarAutenticacion(req, supabaseClient);
 
-    const { data: trabajador, error } = await supabaseClient
-      .from('trabajador')
-      .select('id_trabajador, rut, rol, nombre, apellido')
-      .eq('rut', rutLimpio)
-      .single();
-
-    if (error || !trabajador) {
-      return new Response(
-        JSON.stringify({ error: 'Usuario no encontrado' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Remover auth_uid de la respuesta
+    const { auth_uid, ...trabajadorSinAuthUid } = trabajador;
 
     return new Response(
-      JSON.stringify({ success: true, user: trabajador }),
+      JSON.stringify(trabajadorSinAuthUid),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

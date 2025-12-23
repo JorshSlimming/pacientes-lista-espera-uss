@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../AuthContext';
-import { Paciente, Seguimiento, Contacto } from '../types';
-import { comunas, origenes, instituciones, especialidades, pacientes, seguimientos, contactos } from '../mockData';
-import { validarRut, formatearRut, validarEmail, validarCelular } from '../utils';
+import { pacientesService } from '../api';
+import { catalogosService } from '../api/catalogos.service';
+import { Especialidad, Comuna, Origen, Institucion } from '../types';
+import { validarRut, validarFormatoRut, formatearRut, validarEmail, validarCelular, limpiarRut } from '../utils';
+import Toast from './Toast';
 import './NuevoPacienteForm.css';
 
 interface Props {
   onSuccess: () => void;
 }
 
-// Validar formato dd/mm/yyyy
+// Validar formato dd/mm/yyyy y rango de fechas
 const validarFechaFormato = (fecha: string): boolean => {
   const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
   if (!regex.test(fecha)) return false;
   
   const [dia, mes, anio] = fecha.split('/').map(Number);
+  
+  // Validar rango de años
+  if (anio < 1800 || anio > 2100) return false;
+  
   const fechaObj = new Date(anio, mes - 1, dia);
   return fechaObj.getFullYear() === anio && 
          fechaObj.getMonth() === mes - 1 && 
@@ -24,12 +29,10 @@ const validarFechaFormato = (fecha: string): boolean => {
 // Convertir dd/mm/yyyy a yyyy-mm-dd
 const convertirFechaAISO = (fecha: string): string => {
   const [dia, mes, anio] = fecha.split('/');
-  return `${anio}-${mes}-${dia}`;
+  return `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
 };
 
 const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
-  const { usuario } = useAuth();
-  
   const [rut, setRut] = useState('');
   const [nombre, setNombre] = useState('');
   const [primerApellido, setPrimerApellido] = useState('');
@@ -47,41 +50,85 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
   const [idSubespecialidad2, setIdSubespecialidad2] = useState('');
   const [obs, setObs] = useState('');
 
-  const [especialidadesPrincipales, setEspecialidadesPrincipales] = useState<typeof especialidades>([]);
-  const [subespecialidades1, setSubespecialidades1] = useState<typeof especialidades>([]);
-  const [subespecialidades2, setSubespecialidades2] = useState<typeof especialidades>([]);
+  const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
+  const [comunas, setComunas] = useState<Comuna[]>([]);
+  const [origenes, setOrigenes] = useState<Origen[]>([]);
+  const [instituciones, setInstituciones] = useState<Institucion[]>([]);
+  const [especialidadesPrincipales, setEspecialidadesPrincipales] = useState<Especialidad[]>([]);
+  const [subespecialidades1, setSubespecialidades1] = useState<Especialidad[]>([]);
+  const [subespecialidades2, setSubespecialidades2] = useState<Especialidad[]>([]);
   
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [datosYaCargados, setDatosYaCargados] = useState(false);
+  const [cargandoCatalogos, setCargandoCatalogos] = useState(true);
 
+  // Cargar catálogos al montar
   useEffect(() => {
-    setEspecialidadesPrincipales(especialidades.filter(e => e.nivel === 1));
+    const cargarCatalogos = async () => {
+      setCargandoCatalogos(true);
+      try {
+        // Usar el endpoint que obtiene todos los catálogos de una vez
+        const { data, error } = await catalogosService.obtenerDatosAutocompletar();
+        
+        if (error) {
+          console.error('Error cargando catálogos:', error);
+          setMensaje('Error al cargar catálogos. Por favor recargue la página.');
+        } else if (data) {
+          setEspecialidades(data.especialidades || []);
+          setComunas(data.comunas || []);
+          setOrigenes(data.origenes || []);
+          setInstituciones(data.instituciones || []);
+        }
+      } catch (error) {
+        console.error('Error al cargar catálogos:', error);
+        setMensaje('Error al cargar catálogos. Por favor recargue la página.');
+      } finally {
+        setCargandoCatalogos(false);
+      }
+    };
+    cargarCatalogos();
   }, []);
 
   useEffect(() => {
-    if (idEspecialidad) {
-      const subs = especialidades.filter(e => e.parent_id === parseInt(idEspecialidad) && e.nivel === 2);
+    if (especialidades.length > 0) {
+      setEspecialidadesPrincipales(especialidades.filter(e => e.nivel === 1 && !e.archivado));
+    }
+  }, [especialidades]);
+
+  useEffect(() => {
+    if (idEspecialidad && especialidades.length > 0) {
+      const idEsp = parseInt(idEspecialidad);
+      const subs = especialidades.filter(e => {
+        const parentId = e.parent_id;
+        return parentId === idEsp && e.nivel === 2 && !e.archivado;
+      });
       setSubespecialidades1(subs);
       setIdSubespecialidad1('');
       setIdSubespecialidad2('');
       setSubespecialidades2([]);
     }
-  }, [idEspecialidad]);
+  }, [idEspecialidad, especialidades]);
 
   useEffect(() => {
-    if (idSubespecialidad1) {
-      const subs = especialidades.filter(e => e.parent_id === parseInt(idSubespecialidad1) && e.nivel === 3);
+    if (idSubespecialidad1 && especialidades.length > 0) {
+      const idSub1 = parseInt(idSubespecialidad1);
+      const subs = especialidades.filter(e => {
+        const parentId = e.parent_id;
+        return parentId === idSub1 && e.nivel === 3 && !e.archivado;
+      });
       setSubespecialidades2(subs);
       setIdSubespecialidad2('');
     }
-  }, [idSubespecialidad1]);
+  }, [idSubespecialidad1, especialidades]);
 
   // Función para cargar datos de un paciente existente
-  const cargarDatosPacienteExistente = (rutPaciente: string) => {
+  const cargarDatosPacienteExistente = async (rutPaciente: string) => {
     if (!datosYaCargados) {
-      const pacienteExistente = pacientes.find(p => p.rut === rutPaciente);
+      const rutLimpio = limpiarRut(rutPaciente);
+      const { data: pacienteExistente } = await pacientesService.buscarPorRut(rutLimpio);
+      
       if (pacienteExistente) {
         setDatosYaCargados(true);
         // Cargar datos del paciente
@@ -90,53 +137,55 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
         setSegundoApellido(pacienteExistente.segundo_apellido);
         
         // Convertir fecha de yyyy-mm-dd a dd/mm/yyyy
-        const [anio, mes, dia] = pacienteExistente.fecha_nacimiento.split('-');
-        setFechaNacimiento(`${dia}/${mes}/${anio}`);
-        
-        setIdComuna(pacienteExistente.id_comuna.toString());
-        
-        // Cargar datos de contacto
-        const contactoExistente = contactos.find(c => c.id === pacienteExistente.id_contacto);
-        if (contactoExistente) {
-          setCorreo(contactoExistente.correo);
-          setDireccion(contactoExistente.direccion);
-          setPrimerCelular(contactoExistente.primer_celular);
-          setSegundoCelular(contactoExistente.segundo_celular);
+        if (pacienteExistente.fecha_nacimiento) {
+          const [anio, mes, dia] = pacienteExistente.fecha_nacimiento.split('-');
+          setFechaNacimiento(`${dia}/${mes}/${anio}`);
         }
         
-        // Cargar datos del seguimiento
-        const seguimientoExistente = seguimientos.find(s => s.id_paciente === rutPaciente);
-        if (seguimientoExistente) {
-          setIdOrigen(seguimientoExistente.id_origen.toString());
-          setIdInstitucion(seguimientoExistente.id_institucion_convenio?.toString() || '');
-          setObs(seguimientoExistente.observaciones || '');
-          
-          // Cargar especialidad y sus padres
-          const espActual = especialidades.find(e => e.id === seguimientoExistente.id_especialidad);
+        if (pacienteExistente.id_comuna) setIdComuna(pacienteExistente.id_comuna.toString());
+        
+        // Cargar datos de contacto desde el objeto contacto
+        if (pacienteExistente.contacto?.correo) setCorreo(pacienteExistente.contacto.correo);
+        if (pacienteExistente.contacto?.direccion) setDireccion(pacienteExistente.contacto.direccion);
+        if (pacienteExistente.contacto?.primer_celular) setPrimerCelular(pacienteExistente.contacto.primer_celular);
+        if (pacienteExistente.contacto?.segundo_celular) setSegundoCelular(pacienteExistente.contacto.segundo_celular);
+        
+        // Cargar datos del paciente (origen e institución están en el objeto paciente)
+        if (pacienteExistente.id_origen) setIdOrigen(pacienteExistente.id_origen.toString());
+        if (pacienteExistente.id_institucion_convenio) setIdInstitucion(pacienteExistente.id_institucion_convenio.toString());
+        if (pacienteExistente.obs) setObs(pacienteExistente.obs);
+        
+        // Cargar especialidad y sus padres desde el objeto especialidad
+        if (pacienteExistente.especialidad?.id && especialidades.length > 0) {
+          const espActual = especialidades.find(e => e.id === pacienteExistente.especialidad?.id);
           if (espActual) {
             if (espActual.nivel === 1) {
-              setIdEspecialidad(espActual.id.toString());
+              setIdEspecialidad(espActual.id?.toString() || '');
             } else if (espActual.nivel === 2) {
               setIdEspecialidad(espActual.parent_id?.toString() || '');
-              setIdSubespecialidad1(espActual.id.toString());
+              setIdSubespecialidad1(espActual.id?.toString() || '');
             } else if (espActual.nivel === 3) {
               const subesp1 = especialidades.find(e => e.id === espActual.parent_id);
               if (subesp1) {
                 setIdEspecialidad(subesp1.parent_id?.toString() || '');
-                setIdSubespecialidad1(subesp1.id.toString());
-                setIdSubespecialidad2(espActual.id.toString());
+                setIdSubespecialidad1(subesp1.id?.toString() || '');
+                setIdSubespecialidad2(espActual.id?.toString() || '');
               }
             }
           }
         }
         
-        setMensaje('Paciente existente cargado. Puede modificar los datos.');
-        setTimeout(() => setMensaje(''), 4000);
+        // Mostrar mensaje en Toast
+        setMensaje('Paciente existente. Puede registrar una nueva especialidad o actualizar datos.');
+        setTimeout(() => setMensaje(''), 5000);
       }
     }
   };
 
-  const origenSeleccionado = origenes.find(o => o.id === parseInt(idOrigen));
+  const origenSeleccionado = origenes.find(o => {
+    const id = o.id_origen || o.id;
+    return id === parseInt(idOrigen);
+  });
   const requiereInstitucion = origenSeleccionado?.requiere_ci || false;
 
   const validarFormulario = (): boolean => {
@@ -144,8 +193,10 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
 
     if (!rut) {
       nuevosErrores.rut = 'RUT es obligatorio';
+    } else if (!validarFormatoRut(rut)) {
+      nuevosErrores.rut = 'Formato inválido. Use: numero-digito (ej: 12345678-9)';
     } else if (!validarRut(rut)) {
-      nuevosErrores.rut = 'RUT inválido';
+      nuevosErrores.rut = 'Dígito verificador incorrecto';
     }
 
     if (!nombre) nuevosErrores.nombre = 'Nombre es obligatorio';
@@ -154,7 +205,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
     if (!fechaNacimiento) {
       nuevosErrores.fechaNacimiento = 'Fecha de nacimiento es obligatoria';
     } else if (!validarFechaFormato(fechaNacimiento)) {
-      nuevosErrores.fechaNacimiento = 'Formato inválido. Use dd/mm/yyyy';
+      nuevosErrores.fechaNacimiento = 'Formato inválido. Use dd/mm/yyyy (año entre 1800-2100)';
     }
     if (!direccion) nuevosErrores.direccion = 'Dirección es obligatoria';
     if (!idComuna) nuevosErrores.idComuna = 'Comuna es obligatoria';
@@ -211,7 +262,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
     setDatosYaCargados(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validarFormulario()) {
@@ -222,51 +273,48 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
 
     setGuardando(true);
 
-    setTimeout(() => {
-      const nuevoContacto: Contacto = {
-        id: contactos.length + 1,
-        correo,
-        direccion,
-        primer_celular: primerCelular,
-        segundo_celular: segundoCelular,
-      };
-      contactos.push(nuevoContacto);
+    // Determinar la especialidad final (nivel más bajo seleccionado)
+    let especialidadFinal = parseInt(idEspecialidad);
+    if (idSubespecialidad2) {
+      especialidadFinal = parseInt(idSubespecialidad2);
+    } else if (idSubespecialidad1) {
+      especialidadFinal = parseInt(idSubespecialidad1);
+    }
 
-      const nuevoPaciente: Paciente = {
-        rut,
-        nombre,
-        primer_apellido: primerApellido,
-        segundo_apellido: segundoApellido,
-        fecha_nacimiento: convertirFechaAISO(fechaNacimiento),
-        obs,
-        id_comuna: parseInt(idComuna),
-        id_origen: parseInt(idOrigen),
-        id_institucion_convenio: idInstitucion ? parseInt(idInstitucion) : null,
-        contacto: nuevoContacto,
-      };
-      pacientes.push(nuevoPaciente);
+    const datosNuevoPaciente = {
+      rut: limpiarRut(rut),
+      nombre,
+      primer_apellido: primerApellido,
+      segundo_apellido: segundoApellido,
+      fecha_nacimiento: convertirFechaAISO(fechaNacimiento),
+      obs,
+      id_comuna: parseInt(idComuna),
+      id_origen: parseInt(idOrigen),
+      id_institucion_convenio: idInstitucion ? parseInt(idInstitucion) : null,
+      correo,
+      direccion,
+      primer_celular: primerCelular,
+      segundo_celular: segundoCelular,
+      id_especialidad: especialidadFinal
+    };
 
-      const nuevoSeguimiento: Seguimiento = {
-        id: seguimientos.length + 1,
-        fecha_ingreso: new Date().toISOString().split('T')[0],
-        fecha_primera_llamada: null,
-        fecha_segunda_llamada: null,
-        fecha_tercera_llamada: null,
-        fecha_citacion: null,
-        agendado: 'no',
-        numero_llamado: 0,
-        id_paciente: rut,
-        id_especialidad: parseInt(idSubespecialidad1 || idEspecialidad),
-        rut_ejecutivo_ingreso: usuario?.rut || '',
-      };
-      seguimientos.push(nuevoSeguimiento);
+    const { data, error } = await pacientesService.crearPaciente(datosNuevoPaciente);
 
-      setGuardando(false);
-      setMensaje('¡Paciente registrado exitosamente!');
+    setGuardando(false);
+
+    if (error || !data) {
+      setMensaje(error || 'Error al crear paciente');
+      setTimeout(() => setMensaje(''), 4000);
+    } else {
+      // Mostrar mensaje de éxito sin refresh
+      const mensajeExito = data.message || '✅ Paciente registrado exitosamente';
+      setMensaje(mensajeExito);
       limpiarFormulario();
-      onSuccess();
-      setTimeout(() => setMensaje(''), 3000);
-    }, 500);
+      setTimeout(() => {
+        setMensaje('');
+        onSuccess(); // Llamar onSuccess después de mostrar el mensaje
+      }, 3000);
+    }
   };
 
   // Calcular edad a partir de fecha de nacimiento
@@ -294,14 +342,18 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
 
   const edadReferencial = calcularEdadReferencial(fechaNacimiento);
 
+  if (cargandoCatalogos) {
+    return (
+      <div className="nuevo-paciente-form">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="nuevo-paciente-form">
-      {mensaje && (
-        <div className={`mensaje ${mensaje.includes('exitosamente') ? 'mensaje-success' : 'mensaje-error'}`}>
-          {mensaje}
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="form-compacto">
         {/* Sección de Especialidad - Arriba */}
         <div className="seccion-especialidad">
@@ -311,7 +363,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
               <select value={idEspecialidad} onChange={(e) => setIdEspecialidad(e.target.value)}>
                 <option value="">Seleccionar...</option>
                 {[...especialidadesPrincipales].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                  <option key={e.id_especialidad || e.id} value={e.id_especialidad || e.id}>{e.nombre}</option>
                 ))}
               </select>
               {errores.idEspecialidad && <span className="error">{errores.idEspecialidad}</span>}
@@ -323,7 +375,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
                 <select value={idSubespecialidad1} onChange={(e) => setIdSubespecialidad1(e.target.value)}>
                   <option value="">Seleccionar...</option>
                   {[...subespecialidades1].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => (
-                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                    <option key={e.id_especialidad || e.id} value={e.id_especialidad || e.id}>{e.nombre}</option>
                   ))}
                 </select>
                 {errores.idSubespecialidad1 && <span className="error">{errores.idSubespecialidad1}</span>}
@@ -336,7 +388,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
                 <select value={idSubespecialidad2} onChange={(e) => setIdSubespecialidad2(e.target.value)}>
                   <option value="">Seleccionar...</option>
                   {[...subespecialidades2].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => (
-                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                    <option key={e.id_especialidad || e.id} value={e.id_especialidad || e.id}>{e.nombre}</option>
                   ))}
                 </select>
               </div>
@@ -356,18 +408,20 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
               onChange={(e) => {
                 const valor = e.target.value.replace(/[^0-9kK-]/g, '');
                 setRut(valor);
-                setDatosYaCargados(false); // Permitir cargar datos de otro RUT
+                setDatosYaCargados(false);
                 
                 if (valor && valor.length > 1) {
-                  if (!validarRut(valor)) {
-                    setErrores(prev => ({ ...prev, rut: 'RUT inválido o dígito verificador incorrecto' }));
+                  if (!validarFormatoRut(valor)) {
+                    setErrores(prev => ({ ...prev, rut: 'Use formato: numero-digito (ej: 12345678-9)' }));
+                  } else if (!validarRut(valor)) {
+                    setErrores(prev => ({ ...prev, rut: 'Dígito verificador incorrecto' }));
                   } else {
                     setErrores(prev => ({ ...prev, rut: '' }));
                   }
                 }
               }}
               onBlur={(e) => {
-                if (e.target.value && validarRut(e.target.value)) {
+                if (e.target.value && validarFormatoRut(e.target.value) && validarRut(e.target.value)) {
                   const rutFormateado = formatearRut(e.target.value);
                   setRut(rutFormateado);
                   cargarDatosPacienteExistente(rutFormateado);
@@ -440,7 +494,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <select value={idComuna} onChange={(e) => setIdComuna(e.target.value)}>
               <option value="">Seleccionar...</option>
               {[...comunas].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(c => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
+                <option key={c.id_comuna || c.id} value={c.id_comuna || c.id}>{c.nombre}</option>
               ))}
             </select>
             {errores.idComuna && <span className="error">{errores.idComuna}</span>}
@@ -520,7 +574,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
             <select value={idOrigen} onChange={(e) => setIdOrigen(e.target.value)}>
               <option value="">Seleccionar...</option>
               {[...origenes].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(o => (
-                <option key={o.id} value={o.id}>{o.nombre}</option>
+                <option key={o.id_origen || o.id} value={o.id_origen || o.id}>{o.nombre}</option>
               ))}
             </select>
             {errores.idOrigen && <span className="error">{errores.idOrigen}</span>}
@@ -531,8 +585,8 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
               <label>Institución/Convenio <span className="required">*</span></label>
               <select value={idInstitucion} onChange={(e) => setIdInstitucion(e.target.value)}>
                 <option value="">Seleccionar...</option>
-                {[...instituciones].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(i => (
-                  <option key={i.id} value={i.id}>{i.nombre}</option>
+                {[...instituciones].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((i, index) => (
+                  <option key={i.id_institucion_convenio || i.id_institucion || i.id || `inst-${index}`} value={i.id_institucion_convenio || i.id_institucion || i.id}>{i.nombre}</option>
                 ))}
               </select>
               {errores.idInstitucion && <span className="error">{errores.idInstitucion}</span>}
@@ -561,6 +615,20 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
           </button>
         </div>
       </form>
+
+      {/* Toast de notificaciones */}
+      {mensaje && (
+        <Toast 
+          message={mensaje} 
+          type={
+            mensaje.includes('Error') || mensaje.includes('error') ? 'error' : 
+            mensaje.includes('complete todos los campos') || mensaje.includes('obligatorio') ? 'warning' :
+            mensaje.includes('existente') || mensaje.includes('actualizar datos') ? 'info' :
+            'success'
+          } 
+          onClose={() => setMensaje('')} 
+        />
+      )}
     </div>
   );
 };

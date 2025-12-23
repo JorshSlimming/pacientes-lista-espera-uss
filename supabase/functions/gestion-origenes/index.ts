@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verificarAutenticacion, verificarRol } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,19 +13,19 @@ serve(async (req) => {
   }
 
   try {
-    const { action, data, userRole } = await req.json();
-
-    if (action !== 'listar' && userRole !== 'jefe') {
-      return new Response(
-        JSON.stringify({ error: 'No tienes permisos para esta acción' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Verificar autenticación
+    const trabajador = await verificarAutenticacion(req, supabaseClient);
+
+    const { action, id, data } = await req.json();
+
+    if (action !== 'listar') {
+      verificarRol(trabajador, ['jefe']);
+    }
 
     let result;
 
@@ -36,37 +37,92 @@ serve(async (req) => {
           .order('nombre');
         
         if (listError) throw listError;
-        result = { origenes };
+        result = { data: origenes };
         break;
 
       case 'crear':
+        if (!data?.nombre) {
+          return new Response(
+            JSON.stringify({ error: 'Nombre es requerido' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
         const { data: newOrigen, error: createError } = await supabaseClient
           .from('origen')
-          .insert({ nombre: data.nombre, requiere_ci: data.requiere_ci })
+          .insert({ nombre: data.nombre, requiere_ci: data.requiere_ci ?? false, archivado: data.archivado ?? false })
           .select()
           .single();
         
         if (createError) throw createError;
-        result = { origen: newOrigen };
+        result = { data: newOrigen };
         break;
 
       case 'actualizar':
+        if (!id) {
+          return new Response(
+            JSON.stringify({ error: 'ID es requerido' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
         const { data: updatedOrigen, error: updateError } = await supabaseClient
           .from('origen')
-          .update({ nombre: data.nombre, requiere_ci: data.requiere_ci })
-          .eq('id_origen', data.id_origen)
+          .update(data)
+          .eq('id_origen', id)
           .select()
           .single();
         
         if (updateError) throw updateError;
-        result = { origen: updatedOrigen };
+        result = { data: updatedOrigen };
+        break;
+
+      case 'archivar':
+        if (!id) {
+          return new Response(
+            JSON.stringify({ error: 'ID es requerido' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const { error: archivarError } = await supabaseClient
+          .from('origen')
+          .update({ archivado: true })
+          .eq('id_origen', id);
+        
+        if (archivarError) throw archivarError;
+        result = { message: 'Origen archivado exitosamente' };
+        break;
+
+      case 'desarchivar':
+        if (!id) {
+          return new Response(
+            JSON.stringify({ error: 'ID es requerido' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const { error: desarchivarError } = await supabaseClient
+          .from('origen')
+          .update({ archivado: false })
+          .eq('id_origen', id);
+        
+        if (desarchivarError) throw desarchivarError;
+        result = { message: 'Origen desarchivado exitosamente' };
         break;
 
       case 'eliminar':
+        if (!id) {
+          return new Response(
+            JSON.stringify({ error: 'ID es requerido' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
         const { count } = await supabaseClient
           .from('paciente')
           .select('*', { count: 'exact', head: true })
-          .eq('id_origen', data.id_origen);
+          .eq('id_origen', id);
         
         if (count && count > 0) {
           return new Response(
@@ -78,7 +134,7 @@ serve(async (req) => {
         const { error: deleteError } = await supabaseClient
           .from('origen')
           .delete()
-          .eq('id_origen', data.id_origen);
+          .eq('id_origen', id);
         
         if (deleteError) throw deleteError;
         result = { message: 'Origen eliminado exitosamente' };
@@ -92,7 +148,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, ...result }),
+      JSON.stringify(result),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

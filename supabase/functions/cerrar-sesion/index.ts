@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,8 +12,24 @@ serve(async (req) => {
   }
 
   try {
-    // En un sistema con tokens JWT, aquí invalidarías el token
-    // Como usamos autenticación simple, simplemente confirmamos el cierre
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        },
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! }
+        }
+      }
+    );
+
+    // Cerrar sesión de Supabase Auth
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) throw error;
     
     return new Response(
       JSON.stringify({ success: true, message: 'Sesión cerrada exitosamente' }),

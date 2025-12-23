@@ -1,36 +1,70 @@
-import React, { useState, useMemo } from 'react';
-import { trabajadores, seguimientos } from '../mockData';
+import React, { useState, useEffect, useMemo } from 'react';
+import { adminService } from '../api/admin.service';
 import type { Trabajador } from '../types';
+import { validarRut, limpiarRut } from '../utils';
+import Toast from './Toast';
+import ConfirmDialog from './ConfirmDialog';
 import './GestionUsuarios.css';
 
 const GestionUsuarios: React.FC = () => {
+  const [usuarios, setUsuarios] = useState<Trabajador[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [mostrarInactivos, setMostrarInactivos] = useState(true);
+  const [datosYaCargados, setDatosYaCargados] = useState(false);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [modalTipo, setModalTipo] = useState<'nuevo' | 'editar' | 'cambiarPassword'>('nuevo');
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<Trabajador | null>(null);
   const [mensaje, setMensaje] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    type: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Estados del formulario
   const [formUsuario, setFormUsuario] = useState({
     rut: '',
     nombre: '',
     apellido: '',
-    rol: 'usuario' as 'usuario' | 'jefe',
+    email: '',
     contrasena: '',
     confirmarContrasena: '',
     activo: true
   });
 
+  useEffect(() => {
+    cargarUsuarios();
+  }, []);
+
+  // Cargar datos solo la primera vez que se activa mostrarInactivos
+  useEffect(() => {
+    if (mostrarInactivos && !datosYaCargados) {
+      cargarUsuarios();
+      setDatosYaCargados(true);
+    }
+  }, [mostrarInactivos]);
+
+  const cargarUsuarios = async () => {
+    setLoading(true);
+    console.log('👥 Cargando usuarios...');
+    const { data, error } = await adminService.listarUsuarios();
+    console.log('👥 Respuesta listarUsuarios:', { data, error });
+    if (data) {
+      setUsuarios(data);
+      console.log('👥 Usuarios cargados:', data);
+    } else if (error) {
+      console.error('❌ Error al cargar usuarios:', error);
+    }
+    setLoading(false);
+  };
+
   // Calcular ingresos por ejecutivo
   const ingresosPorEjecutivo = useMemo(() => {
     const ingresos: Record<string, number> = {};
-    
-    seguimientos.forEach(s => {
-      const ejec = trabajadores.find(t => t.rut === s.rut_ejecutivo_ingreso);
-      if (ejec) {
-        ingresos[ejec.rut] = (ingresos[ejec.rut] || 0) + 1;
-      }
-    });
-    
+    // TODO: Obtener ingresos reales de la API cuando esté disponible
+    // Por ahora retorna objeto vacío
     return ingresos;
   }, []);
 
@@ -44,7 +78,7 @@ const GestionUsuarios: React.FC = () => {
       rut: '',
       nombre: '',
       apellido: '',
-      rol: 'usuario',
+      email: '',
       contrasena: '',
       confirmarContrasena: '',
       activo: true
@@ -70,34 +104,45 @@ const GestionUsuarios: React.FC = () => {
     setMostrarModal(true);
   };
 
-  const handleDesactivarUsuario = (usuario: Trabajador) => {
-    const confirmar = window.confirm(
-      `¿Está seguro de ${usuario.activo !== false ? 'desactivar' : 'activar'} al usuario ${usuario.nombre} ${usuario.apellido}?`
-    );
-    if (!confirmar) return;
+  const handleDesactivarUsuario = async (usuario: Trabajador) => {
+    setConfirmDialog({
+      title: usuario.activo ? 'Desactivar Usuario' : 'Activar Usuario',
+      message: `¿Está seguro de ${usuario.activo ? 'desactivar' : 'activar'} al usuario ${usuario.nombre} ${usuario.apellido}?`,
+      type: usuario.activo ? 'warning' : 'info',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        
+        if (!usuario.id_trabajador) {
+          setToast({ message: 'Error: ID de trabajador no disponible', type: 'error' });
+          return;
+        }
 
-    const trabajador = trabajadores.find(t => t.rut === usuario.rut);
-    if (trabajador) {
-      trabajador.activo = trabajador.activo === false ? true : false;
-      mostrarMensaje('success', `Usuario ${trabajador.activo ? 'activado' : 'desactivado'} exitosamente`);
-    }
+        // Usar el servicio correcto según el estado actual
+        const { error } = usuario.activo 
+          ? await adminService.archivarUsuario(usuario.id_trabajador)
+          : await adminService.activarUsuario(usuario.id_trabajador);
+        
+        if (error) {
+          setToast({ message: `Error al ${usuario.activo ? 'desactivar' : 'activar'} usuario: ${error}`, type: 'error' });
+        } else {
+          setToast({ message: `Usuario ${usuario.activo ? 'desactivado' : 'activado'} exitosamente`, type: 'success' });
+          cargarUsuarios();
+        }
+      }
+    });
   };
 
-  const validarRut = (rut: string): boolean => {
-    // Validación simple de formato RUT chileno
-    const rutRegex = /^\d{7,8}-[\dkK]$/;
-    return rutRegex.test(rut);
-  };
-
-  const handleGuardar = () => {
+  const handleGuardar = async () => {
     if (modalTipo === 'nuevo') {
       // Validar campos obligatorios
-      if (!formUsuario.rut || !formUsuario.nombre || !formUsuario.apellido || !formUsuario.contrasena) {
+      if (!formUsuario.rut || !formUsuario.nombre || !formUsuario.apellido || !formUsuario.email || !formUsuario.contrasena) {
         mostrarMensaje('error', 'Complete todos los campos obligatorios');
         return;
       }
 
-      if (!validarRut(formUsuario.rut)) {
+      const rutLimpio = limpiarRut(formUsuario.rut);
+
+      if (!validarRut(rutLimpio)) {
         mostrarMensaje('error', 'RUT inválido. Formato: 12345678-9');
         return;
       }
@@ -113,22 +158,28 @@ const GestionUsuarios: React.FC = () => {
       }
 
       // Verificar si el RUT ya existe
-      if (trabajadores.some(t => t.rut === formUsuario.rut)) {
+      if (usuarios.some(t => t.rut === rutLimpio)) {
         mostrarMensaje('error', 'El RUT ya está registrado');
         return;
       }
 
       // Crear nuevo usuario
-      const nuevoUsuario: Trabajador = {
-        rut: formUsuario.rut,
+      const { error } = await adminService.registrarUsuario({
+        rut: rutLimpio,
         nombre: formUsuario.nombre,
         apellido: formUsuario.apellido,
-        rol: formUsuario.rol,
-        activo: true
-      };
+        email: formUsuario.email,
+        rol: 'usuario',
+        clave: formUsuario.contrasena
+      });
 
-      trabajadores.push(nuevoUsuario);
+      if (error) {
+        mostrarMensaje('error', `Error al crear usuario: ${error}`);
+        return;
+      }
+
       mostrarMensaje('success', 'Usuario creado exitosamente');
+      cargarUsuarios();
       
     } else if (modalTipo === 'cambiarPassword') {
       if (!formUsuario.contrasena || !formUsuario.confirmarContrasena) {
@@ -143,6 +194,23 @@ const GestionUsuarios: React.FC = () => {
 
       if (formUsuario.contrasena.length < 6) {
         mostrarMensaje('error', 'La contraseña debe tener al menos 6 caracteres');
+        return;
+      }
+
+      // Buscar el usuario por RUT para obtener su id_trabajador
+      const usuario = usuarios.find(u => u.rut === formUsuario.rut);
+      if (!usuario || !usuario.id_trabajador) {
+        mostrarMensaje('error', 'Usuario no encontrado');
+        return;
+      }
+
+      const { error } = await adminService.cambiarContrasena(
+        usuario.id_trabajador,
+        formUsuario.contrasena
+      );
+
+      if (error) {
+        mostrarMensaje('error', `Error al cambiar contraseña: ${error}`);
         return;
       }
 
@@ -200,14 +268,13 @@ const GestionUsuarios: React.FC = () => {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Rol <span className="required">*</span></label>
-                  <select
-                    value={formUsuario.rol}
-                    onChange={(e) => setFormUsuario({ ...formUsuario, rol: e.target.value as 'usuario' | 'jefe' })}
-                  >
-                    <option value="usuario">Usuario</option>
-                    <option value="jefe">Jefe</option>
-                  </select>
+                  <label>Email <span className="required">*</span></label>
+                  <input
+                    type="email"
+                    value={formUsuario.email}
+                    onChange={(e) => setFormUsuario({ ...formUsuario, email: e.target.value })}
+                    placeholder="ejemplo@correo.com"
+                  />
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -259,7 +326,20 @@ const GestionUsuarios: React.FC = () => {
                     value={formUsuario.confirmarContrasena}
                     onChange={(e) => setFormUsuario({ ...formUsuario, confirmarContrasena: e.target.value })}
                     placeholder="Repetir contraseña"
+                    style={{
+                      borderColor: formUsuario.confirmarContrasena && formUsuario.contrasena !== formUsuario.confirmarContrasena ? '#e74c3c' : undefined
+                    }}
                   />
+                  {formUsuario.confirmarContrasena && formUsuario.contrasena !== formUsuario.confirmarContrasena && (
+                    <span style={{ color: '#e74c3c', fontSize: '12px', marginTop: '4px' }}>
+                      Las contraseñas no coinciden
+                    </span>
+                  )}
+                  {formUsuario.confirmarContrasena && formUsuario.contrasena === formUsuario.confirmarContrasena && formUsuario.contrasena.length >= 6 && (
+                    <span style={{ color: '#27ae60', fontSize: '12px', marginTop: '4px' }}>
+                      ✓ Las contraseñas coinciden
+                    </span>
+                  )}
                 </div>
               </>
             )}
@@ -278,6 +358,16 @@ const GestionUsuarios: React.FC = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="gestion-usuarios">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="gestion-usuarios">
       {mensaje && (
@@ -289,8 +379,14 @@ const GestionUsuarios: React.FC = () => {
       <div className="usuarios-header">
         <button className="btn btn-primary" onClick={handleNuevoUsuario}>
           ➕ Nuevo Usuario
-        </button>
-      </div>
+        </button>        <label className="checkbox-mostrar-inactivos" style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            type="checkbox"
+            checked={mostrarInactivos}
+            onChange={(e) => setMostrarInactivos(e.target.checked)}
+          />
+          <span>Mostrar inactivos</span>
+        </label>      </div>
 
       <div className="usuarios-tabla-container">
         <table className="usuarios-tabla">
@@ -305,14 +401,17 @@ const GestionUsuarios: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {trabajadores.filter(u => u.rol !== 'jefe').map(usuario => (
-              <tr key={usuario.rut} className={usuario.activo === false ? 'usuario-inactivo' : ''}>
+            {usuarios
+              .filter(u => u.rol !== 'jefe')
+              .filter(u => mostrarInactivos || u.activo)
+              .map(usuario => (
+              <tr key={usuario.rut} className={!usuario.activo ? 'usuario-inactivo' : ''}>
                 <td>{usuario.rut}</td>
                 <td>{usuario.nombre}</td>
                 <td>{usuario.apellido}</td>
                 <td>
-                  <span className={`badge-estado ${usuario.activo !== false ? 'badge-activo' : 'badge-inactivo'}`}>
-                    {usuario.activo !== false ? 'Activo' : 'Inactivo'}
+                  <span className={`badge-estado ${usuario.activo ? 'badge-activo' : 'badge-inactivo'}`}>
+                    {usuario.activo ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
                 <td>
@@ -327,11 +426,11 @@ const GestionUsuarios: React.FC = () => {
                     Cambiar Clave
                   </button>
                   <button
-                    className={`btn-accion ${usuario.activo !== false ? 'btn-desactivar' : 'btn-activar'}`}
+                    className={`btn-accion ${usuario.activo ? 'btn-desactivar' : 'btn-activar'}`}
                     onClick={() => handleDesactivarUsuario(usuario)}
-                    title={usuario.activo !== false ? 'Desactivar usuario' : 'Activar usuario'}
+                    title={usuario.activo ? 'Desactivar usuario' : 'Activar usuario'}
                   >
-                    {usuario.activo !== false ? 'Desactivar' : 'Activar'}
+                    {usuario.activo ? 'Desactivar' : 'Activar'}
                   </button>
                 </td>
               </tr>
@@ -341,6 +440,26 @@ const GestionUsuarios: React.FC = () => {
       </div>
 
       {renderModal()}
+
+      {/* Toast de notificaciones */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+
+      {/* Diálogo de confirmación */}
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </div>
   );
 };

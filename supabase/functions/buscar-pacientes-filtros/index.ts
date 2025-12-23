@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verificarAutenticacion } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,12 +13,24 @@ serve(async (req) => {
   }
 
   try {
-    const { filtros, paginacion } = await req.json();
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        },
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! }
+        }
+      }
     );
+
+    // Verificar autenticación
+    await verificarAutenticacion(req, supabaseClient);
+
+    const { filtros, paginacion } = await req.json();
 
     let query = supabaseClient
       .from('seguimiento')
@@ -30,12 +43,23 @@ serve(async (req) => {
           origen:id_origen (*),
           institucion:id_institucion_convenio (*)
         ),
-        especialidad:id_especialidad (*)
+        especialidad:id_especialidad (*),
+        ejecutivo:id_ejecutivo_ingreso (
+          id_trabajador,
+          rut,
+          nombre,
+          apellido
+        )
       `, { count: 'exact' });
 
-    // Aplicar filtros
+    // Aplicar filtros de especialidad (jerárquico)
     if (filtros.id_especialidad) {
-      query = query.eq('id_especialidad', filtros.id_especialidad);
+      // Si se proporciona un array de IDs de especialidades (para búsqueda jerárquica)
+      if (Array.isArray(filtros.id_especialidad)) {
+        query = query.in('id_especialidad', filtros.id_especialidad);
+      } else {
+        query = query.eq('id_especialidad', filtros.id_especialidad);
+      }
     }
     
     if (filtros.agendado) {
@@ -71,10 +95,28 @@ serve(async (req) => {
 
     if (error) throw error;
 
+    // Transformar resultados para que el paciente esté en el nivel superior
+    const pacientesTransformados = (resultados || []).map(seg => ({
+      ...seg.paciente,
+      seguimiento: {
+        id_seguimiento: seg.id_seguimiento,
+        fecha_ingreso: seg.fecha_ingreso,
+        fecha_primera_llamada: seg.fecha_primera_llamada,
+        fecha_segunda_llamada: seg.fecha_segunda_llamada,
+        fecha_tercera_llamada: seg.fecha_tercera_llamada,
+        numero_llamado: seg.numero_llamado,
+        fecha_citacion: seg.fecha_citacion,
+        agendado: seg.agendado,
+        id_especialidad: seg.id_especialidad,
+        id_ejecutivo_ingreso: seg.id_ejecutivo_ingreso
+      },
+      especialidad: seg.especialidad,
+      ejecutivo: seg.ejecutivo
+    }));
+
     return new Response(
       JSON.stringify({
-        success: true,
-        resultados,
+        data: pacientesTransformados,
         paginacion: {
           total: count,
           page,

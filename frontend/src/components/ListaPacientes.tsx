@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { pacientes, seguimientos, especialidades, comunas, origenes, instituciones, trabajadores } from '../mockData';
-import { PacienteCompleto } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { pacientesService, catalogosService } from '../api';
+import { PacienteCompleto, Especialidad, Comuna, Origen } from '../types';
 import { formatearFecha, calcularEdad } from '../utils';
 import DetallePaciente from './DetallePaciente';
 import './ListaPacientes.css';
@@ -12,34 +12,148 @@ interface Props {
 const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
   const [busqueda, setBusqueda] = useState('');
   const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
+  const [filtroSubespecialidad1, setFiltroSubespecialidad1] = useState('');
+  const [filtroSubespecialidad2, setFiltroSubespecialidad2] = useState('');
   const [filtroComuna, setFiltroComuna] = useState('');
   const [filtroOrigen, setFiltroOrigen] = useState('');
   const [filtroAgendado, setFiltroAgendado] = useState('todos');
   const [ordenPor, setOrdenPor] = useState<'fecha_ingreso' | 'nombre' | 'especialidad'>('fecha_ingreso');
   const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc');
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<PacienteCompleto | null>(null);
+  
+  const [pacientesCompletos, setPacientesCompletos] = useState<PacienteCompleto[]>([]);
+  const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
+  const [especialidadesPrincipales, setEspecialidadesPrincipales] = useState<Especialidad[]>([]);
+  const [subespecialidades1Filtro, setSubespecialidades1Filtro] = useState<Especialidad[]>([]);
+  const [subespecialidades2Filtro, setSubespecialidades2Filtro] = useState<Especialidad[]>([]);
+  const [comunas, setComunas] = useState<Comuna[]>([]);
+  const [origenes, setOrigenes] = useState<Origen[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalPacientes, setTotalPacientes] = useState(0);
 
-  // Construir lista completa de pacientes
-  const pacientesCompletos: PacienteCompleto[] = useMemo(() => {
-    return pacientes.map(p => {
-      const seg = seguimientos.find(s => s.id_paciente === p.rut);
-      const esp = especialidades.find(e => e.id === seg?.id_especialidad);
-      const com = comunas.find(c => c.id === p.id_comuna);
-      const ori = origenes.find(o => o.id === p.id_origen);
-      const inst = instituciones.find(i => i.id === p.id_institucion_convenio);
-      const ejec = trabajadores.find(t => t.rut === seg?.rut_ejecutivo_ingreso);
-
-      return {
-        ...p,
-        seguimiento: seg!,
-        especialidad: esp!,
-        comuna: com!,
-        origen: ori!,
-        institucion: inst || null,
-        ejecutivo: ejec!,
-      };
-    });
+  useEffect(() => {
+    cargarDatos();
   }, []);
+
+  const cargarDatos = async (resetear = true) => {
+    try {
+      if (resetear) {
+        setLoading(true);
+        setPaginaActual(1);
+        setPacientesCompletos([]);
+      } else {
+        setLoadingMore(true);
+      }
+      
+      const pagina = resetear ? 1 : paginaActual + 1;
+      
+      console.log('📦 Cargando datos - Página:', pagina);
+      
+      const [pacientesRes, catalogosRes] = await Promise.all([
+        pacientesService.buscarConFiltros({
+          paginacion: {
+            page: pagina,
+            per_page: 50
+          }
+        }),
+        resetear ? catalogosService.obtenerDatosAutocompletar() : Promise.resolve({ data: null })
+      ]);
+      
+      console.log('📦 Respuesta pacientes:', pacientesRes);
+      console.log('📦 Respuesta catálogos:', catalogosRes);
+      
+      if (pacientesRes.error) {
+        console.error('❌ Error al cargar pacientes:', pacientesRes.error);
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+      
+      if (pacientesRes.data) {
+        console.log('✅ Pacientes recibidos:', pacientesRes.data.length);
+        if (resetear) {
+          setPacientesCompletos(pacientesRes.data);
+        } else {
+          setPacientesCompletos(prev => [...prev, ...pacientesRes.data]);
+        }
+        
+        // Actualizar info de paginación si viene en la respuesta
+        if ((pacientesRes as any).paginacion) {
+          const pag = (pacientesRes as any).paginacion;
+          console.log('📊 Paginación:', pag);
+          setTotalPaginas(pag.total_pages || 1);
+          setTotalPacientes(pag.total || 0);
+          setPaginaActual(pagina);
+        }
+      }
+      
+      if (catalogosRes.data && resetear) {
+        const todasEspecialidades = catalogosRes.data.especialidades || [];
+        setEspecialidades(todasEspecialidades);
+        setEspecialidadesPrincipales(todasEspecialidades.filter((e: Especialidad) => e.nivel === 1 && !e.archivado));
+        setComunas(catalogosRes.data.comunas || []);
+        setOrigenes(catalogosRes.data.origenes || []);
+      }
+      
+      setLoading(false);
+      setLoadingMore(false);
+    } catch (error) {
+      console.error('❌ Error en cargarDatos:', error);
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const cargarMasPacientes = () => {
+    if (paginaActual < totalPaginas && !loadingMore) {
+      cargarDatos(false);
+    }
+  };
+
+  // Función para actualizar un paciente específico sin recargar toda la lista
+  const actualizarPaciente = async (rut: string) => {
+    try {
+      const { data, error } = await pacientesService.buscarPorRut(rut);
+      if (!error && data) {
+        setPacientesCompletos(prev => 
+          prev.map(p => p.rut === rut ? data : p)
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error al actualizar paciente:', error);
+    }
+  };
+
+  // useEffect para actualizar subespecialidades cuando cambia filtro de especialidad
+  useEffect(() => {
+    if (filtroEspecialidad && especialidades.length > 0) {
+      const subs = especialidades.filter(e => e.parent_id === parseInt(filtroEspecialidad) && e.nivel === 2 && !e.archivado);
+      setSubespecialidades1Filtro(subs);
+      setFiltroSubespecialidad1('');
+      setFiltroSubespecialidad2('');
+      setSubespecialidades2Filtro([]);
+    } else {
+      setSubespecialidades1Filtro([]);
+      setFiltroSubespecialidad1('');
+      setFiltroSubespecialidad2('');
+      setSubespecialidades2Filtro([]);
+    }
+  }, [filtroEspecialidad, especialidades]);
+
+  // useEffect para actualizar subespecialidades nivel 3 cuando cambia subespecialidad 1
+  useEffect(() => {
+    if (filtroSubespecialidad1 && especialidades.length > 0) {
+      const subs = especialidades.filter(e => e.parent_id === parseInt(filtroSubespecialidad1) && e.nivel === 3 && !e.archivado);
+      setSubespecialidades2Filtro(subs);
+      setFiltroSubespecialidad2('');
+    } else {
+      setSubespecialidades2Filtro([]);
+      setFiltroSubespecialidad2('');
+    }
+  }, [filtroSubespecialidad1, especialidades]);
 
   // Filtrar y ordenar pacientes
   const pacientesFiltrados = useMemo(() => {
@@ -56,9 +170,34 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
       );
     }
 
-    // Filtro por especialidad
+    // Filtro por especialidad jerárquico
     if (filtroEspecialidad) {
-      resultado = resultado.filter(p => p.seguimiento.id_especialidad === parseInt(filtroEspecialidad));
+      // Determinar qué nivel de especialidad usar para el filtro
+      let idsEspecialidadesAFiltrar: number[] = [];
+      
+      if (filtroSubespecialidad2) {
+        // Si hay subespecialidad 2 seleccionada, filtrar solo por ella
+        idsEspecialidadesAFiltrar = [parseInt(filtroSubespecialidad2)];
+      } else if (filtroSubespecialidad1) {
+        // Si hay subespecialidad 1 seleccionada, incluir ella y todas sus hijas de nivel 3
+        idsEspecialidadesAFiltrar = [parseInt(filtroSubespecialidad1)];
+        const hijas = especialidades.filter(e => e.parent_id === parseInt(filtroSubespecialidad1));
+        idsEspecialidadesAFiltrar.push(...hijas.map(e => e.id || e.id_especialidad));
+      } else {
+        // Si solo hay especialidad principal, incluir ella y todas sus hijas (nivel 2 y 3)
+        idsEspecialidadesAFiltrar = [parseInt(filtroEspecialidad)];
+        const hijasNivel2 = especialidades.filter(e => e.parent_id === parseInt(filtroEspecialidad));
+        idsEspecialidadesAFiltrar.push(...hijasNivel2.map(e => e.id || e.id_especialidad));
+        // También agregar las hijas de nivel 3
+        hijasNivel2.forEach(hijo2 => {
+          const hijasNivel3 = especialidades.filter(e => e.parent_id === (hijo2.id || hijo2.id_especialidad));
+          idsEspecialidadesAFiltrar.push(...hijasNivel3.map(e => e.id || e.id_especialidad));
+        });
+      }
+      
+      resultado = resultado.filter(p => 
+        idsEspecialidadesAFiltrar.includes(p.seguimiento?.id_especialidad)
+      );
     }
 
     // Filtro por comuna
@@ -73,41 +212,47 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
 
     // Filtro por estado de agendado
     if (filtroAgendado === 'agendado') {
-      resultado = resultado.filter(p => p.seguimiento.agendado);
+      resultado = resultado.filter(p => p.seguimiento?.agendado === 'si');
     } else if (filtroAgendado === 'pendiente') {
-      resultado = resultado.filter(p => !p.seguimiento.agendado);
+      resultado = resultado.filter(p => p.seguimiento?.agendado === 'no');
     }
 
     // Ordenar
     resultado.sort((a, b) => {
       let comparacion = 0;
       if (ordenPor === 'fecha_ingreso') {
-        comparacion = a.seguimiento.fecha_ingreso.localeCompare(b.seguimiento.fecha_ingreso);
+        const fechaA = a.seguimiento?.fecha_ingreso || '';
+        const fechaB = b.seguimiento?.fecha_ingreso || '';
+        comparacion = fechaA.localeCompare(fechaB);
       } else if (ordenPor === 'nombre') {
         const nombreA = `${a.nombre} ${a.primer_apellido}`.toLowerCase();
         const nombreB = `${b.nombre} ${b.primer_apellido}`.toLowerCase();
         comparacion = nombreA.localeCompare(nombreB);
       } else if (ordenPor === 'especialidad') {
-        comparacion = a.especialidad.nombre.localeCompare(b.especialidad.nombre);
+        const espA = a.especialidad?.nombre || '';
+        const espB = b.especialidad?.nombre || '';
+        comparacion = espA.localeCompare(espB);
       }
       return ordenDir === 'asc' ? comparacion : -comparacion;
     });
 
     return resultado;
-  }, [pacientesCompletos, busqueda, filtroEspecialidad, filtroComuna, filtroOrigen, filtroAgendado, ordenPor, ordenDir]);
+  }, [pacientesCompletos, busqueda, filtroEspecialidad, filtroSubespecialidad1, filtroSubespecialidad2, filtroComuna, filtroOrigen, filtroAgendado, ordenPor, ordenDir, especialidades]);
 
   const estadisticas = useMemo(() => {
     return {
       total: pacientesFiltrados.length,
-      pendientes: pacientesFiltrados.filter(p => !p.seguimiento.agendado).length,
-      agendados: pacientesFiltrados.filter(p => p.seguimiento.agendado).length,
-      sinLlamar: pacientesFiltrados.filter(p => !p.seguimiento.fecha_primera_llamada).length,
+      pendientes: pacientesFiltrados.filter(p => p.seguimiento?.agendado === 'no').length,
+      agendados: pacientesFiltrados.filter(p => p.seguimiento?.agendado === 'si').length,
+      sinLlamar: pacientesFiltrados.filter(p => !p.seguimiento?.fecha_primera_llamada).length
     };
   }, [pacientesFiltrados]);
 
   const limpiarFiltros = () => {
     setBusqueda('');
     setFiltroEspecialidad('');
+    setFiltroSubespecialidad1('');
+    setFiltroSubespecialidad2('');
     setFiltroComuna('');
     setFiltroOrigen('');
     setFiltroAgendado('todos');
@@ -120,6 +265,16 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
     if (fecha_primera_llamada) return '1 llamada';
     return 'Sin llamar';
   };
+
+  if (loading) {
+    return (
+      <div className="lista-pacientes">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lista-pacientes">
@@ -144,18 +299,42 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
             <label>Especialidad</label>
             <select value={filtroEspecialidad} onChange={(e) => setFiltroEspecialidad(e.target.value)}>
               <option value="">Todas</option>
-              {especialidades.map(e => (
-                <option key={e.id} value={e.id}>{e.nombre}</option>
+              {especialidadesPrincipales.map(e => (
+                <option key={e.id || e.id_especialidad} value={e.id || e.id_especialidad}>{e.nombre}</option>
               ))}
             </select>
           </div>
+
+          {filtroEspecialidad && subespecialidades1Filtro.length > 0 && (
+            <div className="filtro-item">
+              <label>Subespecialidad 1</label>
+              <select value={filtroSubespecialidad1} onChange={(e) => setFiltroSubespecialidad1(e.target.value)}>
+                <option value="">Todas</option>
+                {subespecialidades1Filtro.map(e => (
+                  <option key={e.id || e.id_especialidad} value={e.id || e.id_especialidad}>{e.nombre}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {filtroSubespecialidad1 && subespecialidades2Filtro.length > 0 && (
+            <div className="filtro-item">
+              <label>Subespecialidad 2</label>
+              <select value={filtroSubespecialidad2} onChange={(e) => setFiltroSubespecialidad2(e.target.value)}>
+                <option value="">Todas</option>
+                {subespecialidades2Filtro.map(e => (
+                  <option key={e.id || e.id_especialidad} value={e.id || e.id_especialidad}>{e.nombre}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="filtro-item">
             <label>Comuna</label>
             <select value={filtroComuna} onChange={(e) => setFiltroComuna(e.target.value)}>
               <option value="">Todas</option>
               {comunas.map(c => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
+                <option key={c.id || c.id_comuna} value={c.id || c.id_comuna}>{c.nombre}</option>
               ))}
             </select>
           </div>
@@ -165,7 +344,7 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
             <select value={filtroOrigen} onChange={(e) => setFiltroOrigen(e.target.value)}>
               <option value="">Todos</option>
               {origenes.map(o => (
-                <option key={o.id} value={o.id}>{o.nombre}</option>
+                <option key={o.id || o.id_origen} value={o.id || o.id_origen}>{o.nombre}</option>
               ))}
             </select>
           </div>
@@ -251,20 +430,20 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
                   <td>{p.rut}</td>
                   <td>{`${p.nombre} ${p.primer_apellido} ${p.segundo_apellido}`}</td>
                   <td>{calcularEdad(p.fecha_nacimiento)} años</td>
-                  <td>{p.especialidad.nombre}</td>
-                  <td>{p.comuna.nombre}</td>
-                  <td>{p.origen.nombre}</td>
+                  <td>{p.especialidad?.nombre || 'N/A'}</td>
+                  <td>{p.comuna?.nombre || 'N/A'}</td>
+                  <td>{p.origen?.nombre || 'N/A'}</td>
                   <td>
-                    <span className={`badge-llamadas llamadas-${p.seguimiento.fecha_primera_llamada ? (p.seguimiento.fecha_tercera_llamada ? '3' : (p.seguimiento.fecha_segunda_llamada ? '2' : '1')) : '0'}`}>
+                    <span className={`badge-llamadas llamadas-${p.seguimiento?.fecha_primera_llamada ? (p.seguimiento?.fecha_tercera_llamada ? '3' : (p.seguimiento?.fecha_segunda_llamada ? '2' : '1')) : '0'}`}>
                       {obtenerEstadoLlamadas(p)}
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${p.seguimiento.agendado ? 'badge-success' : 'badge-warning'}`}>
-                      {p.seguimiento.agendado ? 'Sí' : 'No'}
+                    <span className={`badge ${p.seguimiento?.agendado === 'si' ? 'badge-success' : 'badge-warning'}`}>
+                      {p.seguimiento?.agendado === 'si' ? 'Sí' : 'No'}
                     </span>
                   </td>
-                  <td>{formatearFecha(p.seguimiento.fecha_ingreso)}</td>
+                  <td>{p.seguimiento?.fecha_ingreso ? formatearFecha(p.seguimiento.fecha_ingreso) : 'N/A'}</td>
                   <td>
                     <button
                       onClick={() => setPacienteSeleccionado(p)}
@@ -280,13 +459,40 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
         </table>
       </div>
 
+      {paginaActual < totalPaginas && (
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <button 
+            onClick={cargarMasPacientes} 
+            disabled={loadingMore}
+            className="btn-cargar-mas"
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loadingMore ? 'not-allowed' : 'pointer',
+              opacity: loadingMore ? 0.6 : 1
+            }}
+          >
+            {loadingMore ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }}></div>
+                Cargando...
+              </div>
+            ) : `Cargar más (${pacientesCompletos.length} de ${totalPacientes})`}
+          </button>
+        </div>
+      )}
+
       {pacienteSeleccionado && (
         <DetallePaciente
           paciente={pacienteSeleccionado}
           onClose={() => setPacienteSeleccionado(null)}
           onActualizar={() => {
+            actualizarPaciente(pacienteSeleccionado.rut);
             onActualizar();
-            setPacienteSeleccionado(null);
           }}
         />
       )}

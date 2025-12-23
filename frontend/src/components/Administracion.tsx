@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { comunas, origenes, especialidades, institucionesConvenio } from '../mockData';
+import { catalogosService } from '../api';
 import type { Comuna, Origen, Especialidad, InstitucionConvenio } from '../types';
+import Toast from './Toast';
+import ConfirmDialog from './ConfirmDialog';
 import './Administracion.css';
 
 type Entidad = 'comunas' | 'origenes' | 'especialidades' | 'subesp1' | 'subesp2' | 'instituciones';
@@ -11,7 +13,16 @@ const Administracion: React.FC = () => {
   const [itemSeleccionado, setItemSeleccionado] = useState<any>(null);
   const [subTabEspecialidad, setSubTabEspecialidad] = useState<'especialidades' | 'subesp1' | 'subesp2'>('especialidades');
   const [ocultarVacias, setOcultarVacias] = useState(true);
+  const [mostrarArchivados, setMostrarArchivados] = useState(false);
+  const [datosYaCargados, setDatosYaCargados] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Datos de la API
+  const [comunas, setComunas] = useState<Comuna[]>([]);
+  const [origenes, setOrigenes] = useState<Origen[]>([]);
+  const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
+  const [instituciones, setInstituciones] = useState<InstitucionConvenio[]>([]);
 
   // Estados de formulario
   const [formComuna, setFormComuna] = useState({ nombre: '' });
@@ -20,11 +31,82 @@ const Administracion: React.FC = () => {
   const [formInstitucion, setFormInstitucion] = useState({ nombre: '', tipo: '' });
 
   const [mensaje, setMensaje] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'warning' | 'info' } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    type: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+  } | null>(null);
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  // Cargar datos solo la primera vez que se activa mostrarArchivados
+  useEffect(() => {
+    if (mostrarArchivados && !datosYaCargados) {
+      cargarDatos();
+      setDatosYaCargados(true);
+    }
+  }, [mostrarArchivados]);
 
   // Limpiar búsqueda al cambiar de pestaña
   useEffect(() => {
     setBusqueda('');
   }, [entidadActiva]);
+
+  const cargarDatos = async () => {
+    setLoading(true);
+    console.log('📦 Cargando catálogos...');
+    
+    try {
+      // Cargar todos los catálogos directamente (incluye archivados)
+      const [comunasRes, origenesRes, especialidadesRes, institucionesRes] = await Promise.all([
+        catalogosService.comunas.listar(),
+        catalogosService.origenes.listar(),
+        catalogosService.especialidades.listar(),
+        catalogosService.instituciones.listar()
+      ]);
+
+      if (comunasRes.error) {
+        console.error('❌ Error al cargar comunas:', comunasRes.error);
+        mostrarMensaje('error', `Error al cargar comunas: ${comunasRes.error}`);
+      } else if (comunasRes.data) {
+        setComunas(comunasRes.data);
+        console.log('📦 Comunas cargadas:', comunasRes.data.length);
+      }
+
+      if (origenesRes.error) {
+        console.error('❌ Error al cargar orígenes:', origenesRes.error);
+        mostrarMensaje('error', `Error al cargar orígenes: ${origenesRes.error}`);
+      } else if (origenesRes.data) {
+        setOrigenes(origenesRes.data);
+        console.log('📦 Orígenes cargados:', origenesRes.data.length);
+      }
+
+      if (especialidadesRes.error) {
+        console.error('❌ Error al cargar especialidades:', especialidadesRes.error);
+        mostrarMensaje('error', `Error al cargar especialidades: ${especialidadesRes.error}`);
+      } else if (especialidadesRes.data) {
+        setEspecialidades(especialidadesRes.data);
+        console.log('📦 Especialidades cargadas:', especialidadesRes.data.length);
+      }
+
+      if (institucionesRes.error) {
+        console.error('❌ Error al cargar instituciones:', institucionesRes.error);
+        mostrarMensaje('error', `Error al cargar instituciones: ${institucionesRes.error}`);
+      } else if (institucionesRes.data) {
+        setInstituciones(institucionesRes.data);
+        console.log('📦 Instituciones cargadas:', institucionesRes.data.length);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando catálogos:', error);
+      mostrarMensaje('error', 'Error al cargar catálogos');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const mostrarMensaje = (tipo: 'success' | 'error', texto: string) => {
     setMensaje({ tipo, texto });
@@ -58,7 +140,7 @@ const Administracion: React.FC = () => {
     } else if (entidadActiva === 'origenes') {
       setFormOrigen({ nombre: item.nombre });
     } else if (entidadActiva === 'especialidades' || entidadActiva === 'subesp1' || entidadActiva === 'subesp2') {
-      setFormEspecialidad({ nombre: item.nombre, nivel: item.nivel, parent_id: item.parent_id || null });
+      setFormEspecialidad({ nombre: item.nombre, nivel: item.nivel || 1, parent_id: item.parent_id || null });
     } else if (entidadActiva === 'instituciones') {
       setFormInstitucion({ nombre: item.nombre, tipo: item.tipo });
     }
@@ -66,24 +148,25 @@ const Administracion: React.FC = () => {
     setMostrarModal(true);
   };
 
-  const handleGuardar = () => {
+  const handleGuardar = async () => {
     if (entidadActiva === 'comunas') {
       if (!formComuna.nombre) {
         mostrarMensaje('error', 'El nombre es obligatorio');
         return;
       }
       
+      let resultado;
       if (itemSeleccionado) {
-        const comuna = comunas.find(c => c.id === itemSeleccionado.id);
-        if (comuna) comuna.nombre = formComuna.nombre;
-        mostrarMensaje('success', 'Comuna actualizada exitosamente');
+        resultado = await catalogosService.comunas.actualizar(itemSeleccionado.id_comuna, { nombre: formComuna.nombre });
       } else {
-        const nuevaComuna: Comuna = {
-          id: Math.max(...comunas.map(c => c.id), 0) + 1,
-          nombre: formComuna.nombre,
-        };
-        comunas.push(nuevaComuna);
-        mostrarMensaje('success', 'Comuna creada exitosamente');
+        resultado = await catalogosService.comunas.crear({ nombre: formComuna.nombre, archivado: false });
+      }
+      
+      if (resultado.error) {
+        mostrarMensaje('error', resultado.error);
+      } else {
+        mostrarMensaje('success', itemSeleccionado ? 'Comuna actualizada exitosamente' : 'Comuna creada exitosamente');
+        cargarDatos();
       }
     } else if (entidadActiva === 'origenes') {
       if (!formOrigen.nombre) {
@@ -91,18 +174,18 @@ const Administracion: React.FC = () => {
         return;
       }
       
+      let resultado;
       if (itemSeleccionado) {
-        const origen = origenes.find(o => o.id === itemSeleccionado.id);
-        if (origen) origen.nombre = formOrigen.nombre;
-        mostrarMensaje('success', 'Origen actualizado exitosamente');
+        resultado = await catalogosService.origenes.actualizar(itemSeleccionado.id_origen, { nombre: formOrigen.nombre });
       } else {
-        const nuevoOrigen: Origen = {
-          id: Math.max(...origenes.map(o => o.id), 0) + 1,
-          nombre: formOrigen.nombre,
-          requiere_ci: false,
-        };
-        origenes.push(nuevoOrigen);
-        mostrarMensaje('success', 'Origen creado exitosamente');
+        resultado = await catalogosService.origenes.crear({ nombre: formOrigen.nombre, requiere_ci: false, archivado: false });
+      }
+      
+      if (resultado.error) {
+        mostrarMensaje('error', resultado.error);
+      } else {
+        mostrarMensaje('success', itemSeleccionado ? 'Origen actualizado exitosamente' : 'Origen creado exitosamente');
+        cargarDatos();
       }
     } else if (entidadActiva === 'especialidades' || entidadActiva === 'subesp1' || entidadActiva === 'subesp2') {
       if (!formEspecialidad.nombre) {
@@ -110,22 +193,23 @@ const Administracion: React.FC = () => {
         return;
       }
       
+      let resultado;
       if (itemSeleccionado) {
-        const especialidad = especialidades.find(e => e.id === itemSeleccionado.id);
-        if (especialidad) {
-          especialidad.nombre = formEspecialidad.nombre;
-          especialidad.parent_id = formEspecialidad.parent_id;
-        }
-        mostrarMensaje('success', 'Especialidad actualizada exitosamente');
+        resultado = await catalogosService.especialidades.actualizar(itemSeleccionado.id_especialidad, { nombre: formEspecialidad.nombre });
       } else {
-        const nuevaEspecialidad: Especialidad = {
-          id: Math.max(...especialidades.map(e => e.id), 0) + 1,
-          nombre: formEspecialidad.nombre,
-          parent_id: formEspecialidad.parent_id,
+        resultado = await catalogosService.especialidades.crear({ 
+          nombre: formEspecialidad.nombre, 
           nivel: formEspecialidad.nivel,
-        };
-        especialidades.push(nuevaEspecialidad);
-        mostrarMensaje('success', 'Especialidad creada exitosamente');
+          parent_id: formEspecialidad.parent_id,
+          archivado: false 
+        });
+      }
+      
+      if (resultado.error) {
+        mostrarMensaje('error', resultado.error);
+      } else {
+        mostrarMensaje('success', itemSeleccionado ? 'Especialidad actualizada exitosamente' : 'Especialidad creada exitosamente');
+        cargarDatos();
       }
     } else if (entidadActiva === 'instituciones') {
       if (!formInstitucion.nombre || !formInstitucion.tipo) {
@@ -133,21 +217,25 @@ const Administracion: React.FC = () => {
         return;
       }
       
+      let resultado;
       if (itemSeleccionado) {
-        const institucion = institucionesConvenio.find(i => i.id === itemSeleccionado.id);
-        if (institucion) {
-          institucion.nombre = formInstitucion.nombre;
-          institucion.tipo = formInstitucion.tipo;
-        }
-        mostrarMensaje('success', 'Institución actualizada exitosamente');
-      } else {
-        const nuevaInstitucion: InstitucionConvenio = {
-          id: Math.max(...institucionesConvenio.map(i => i.id), 0) + 1,
+        resultado = await catalogosService.instituciones.actualizar(itemSeleccionado.id_institucion_convenio, { 
           nombre: formInstitucion.nombre,
+          tipo: formInstitucion.tipo 
+        });
+      } else {
+        resultado = await catalogosService.instituciones.crear({ 
+          nombre: formInstitucion.nombre, 
           tipo: formInstitucion.tipo,
-        };
-        institucionesConvenio.push(nuevaInstitucion);
-        mostrarMensaje('success', 'Institución creada exitosamente');
+          archivado: false 
+        });
+      }
+      
+      if (resultado.error) {
+        mostrarMensaje('error', resultado.error);
+      } else {
+        mostrarMensaje('success', itemSeleccionado ? 'Institución actualizada exitosamente' : 'Institución creada exitosamente');
+        cargarDatos();
       }
     }
     
@@ -155,45 +243,95 @@ const Administracion: React.FC = () => {
     setMostrarModal(false);
   };
 
-  const handleArchivar = (item: any) => {
-    const confirmar = window.confirm(`¿Está seguro de archivar "${item.nombre}"?`);
-    if (!confirmar) return;
-    
-    if (entidadActiva === 'comunas') {
-      const comuna = comunas.find(c => c.id === item.id);
-      if (comuna) comuna.archivado = true;
-    } else if (entidadActiva === 'origenes') {
-      const origen = origenes.find(o => o.id === item.id);
-      if (origen) origen.archivado = true;
-    } else if (entidadActiva === 'especialidades' || entidadActiva === 'subesp1' || entidadActiva === 'subesp2') {
-      const especialidad = especialidades.find(e => e.id === item.id);
-      if (especialidad) especialidad.archivado = true;
-    } else if (entidadActiva === 'instituciones') {
-      const institucion = institucionesConvenio.find(i => i.id === item.id);
-      if (institucion) institucion.archivado = true;
-    }
-    
-    mostrarMensaje('success', 'Elemento archivado exitosamente');
+  const handleArchivar = async (item: any) => {
+    setConfirmDialog({
+      title: 'Archivar Elemento',
+      message: `¿Está seguro de archivar "${item.nombre}"?`,
+      type: 'warning',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        
+        let resultado;
+        if (entidadActiva === 'comunas') {
+          resultado = await catalogosService.comunas.archivar(item.id_comuna);
+        } else if (entidadActiva === 'origenes') {
+          resultado = await catalogosService.origenes.archivar(item.id_origen);
+        } else if (entidadActiva === 'especialidades' || entidadActiva === 'subesp1' || entidadActiva === 'subesp2') {
+          resultado = await catalogosService.especialidades.archivar(item.id_especialidad);
+        } else if (entidadActiva === 'instituciones') {
+          resultado = await catalogosService.instituciones.archivar(item.id_institucion_convenio);
+        }
+        
+        if (resultado?.error) {
+          setToast({ message: resultado.error, type: 'error' });
+        } else {
+          setToast({ message: 'Elemento archivado exitosamente', type: 'success' });
+          cargarDatos();
+        }
+      }
+    });
+  };
+
+  const handleDesarchivar = async (item: any) => {
+    setConfirmDialog({
+      title: 'Desarchivar Elemento',
+      message: `¿Está seguro de desarchivar "${item.nombre}"?`,
+      type: 'info',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        
+        let resultado;
+        if (entidadActiva === 'comunas') {
+          resultado = await catalogosService.comunas.desarchivar(item.id_comuna);
+        } else if (entidadActiva === 'origenes') {
+          resultado = await catalogosService.origenes.desarchivar(item.id_origen);
+        } else if (entidadActiva === 'especialidades' || entidadActiva === 'subesp1' || entidadActiva === 'subesp2') {
+          resultado = await catalogosService.especialidades.desarchivar(item.id_especialidad);
+        } else if (entidadActiva === 'instituciones') {
+          resultado = await catalogosService.instituciones.desarchivar(item.id_institucion_convenio);
+        }
+        
+        if (resultado?.error) {
+          setToast({ message: resultado.error, type: 'error' });
+        } else {
+          setToast({ message: 'Elemento desarchivado exitosamente', type: 'success' });
+          cargarDatos();
+        }
+      }
+    });
   };
 
   const renderTablaItems = () => {
     let items: any[] = [];
     
     if (entidadActiva === 'comunas') {
-      items = comunas.filter(c => !c.archivado && (!busqueda || c.nombre.toLowerCase().includes(busqueda.toLowerCase())));
+      items = Array.isArray(comunas) ? comunas.filter(c => {
+        const matchBusqueda = !busqueda || c.nombre.toLowerCase().includes(busqueda.toLowerCase());
+        const matchArchivado = mostrarArchivados || !c.archivado;
+        return matchBusqueda && matchArchivado;
+      }) : [];
     } else if (entidadActiva === 'origenes') {
-      items = origenes.filter(o => !o.archivado && (!busqueda || o.nombre.toLowerCase().includes(busqueda.toLowerCase())));
+      items = Array.isArray(origenes) ? origenes.filter(o => {
+        const matchBusqueda = !busqueda || o.nombre.toLowerCase().includes(busqueda.toLowerCase());
+        const matchArchivado = mostrarArchivados || !o.archivado;
+        return matchBusqueda && matchArchivado;
+      }) : [];
     } else if (entidadActiva === 'especialidades') {
       // Tabla simple de especialidades principales (nivel 1)
-      items = especialidades.filter(e => !e.archivado && e.nivel === 1 && (!busqueda || e.nombre.toLowerCase().includes(busqueda.toLowerCase())));
+      items = Array.isArray(especialidades) ? especialidades.filter(e => {
+        const matchNivel = e.nivel === 1;
+        const matchBusqueda = !busqueda || e.nombre.toLowerCase().includes(busqueda.toLowerCase());
+        const matchArchivado = mostrarArchivados || !e.archivado;
+        return matchNivel && matchBusqueda && matchArchivado;
+      }) : [];
     } else if (entidadActiva === 'subesp1') {
       // Mostrar agrupadas por especialidad principal
-      let especialidadesPrincipales = especialidades.filter(e => !e.archivado && e.nivel === 1);
+      let especialidadesPrincipales = Array.isArray(especialidades) ? especialidades.filter(e => e.nivel === 1) : [];
       
       // Filtrar solo las que tienen hijas si está activado
       if (ocultarVacias) {
         especialidadesPrincipales = especialidadesPrincipales.filter(espPrincipal => {
-          const tieneHijas = especialidades.some(e => !e.archivado && e.nivel === 2 && e.parent_id === espPrincipal.id);
+          const tieneHijas = especialidades.some(e => e.nivel === 2 && e.parent_id === espPrincipal.id_especialidad);
           return tieneHijas;
         });
       }
@@ -201,15 +339,15 @@ const Administracion: React.FC = () => {
       return (
         <div className="especialidades-agrupadas">
           {especialidadesPrincipales.map(espPrincipal => {
-            const subesp1 = especialidades.filter(e => !e.archivado && e.nivel === 2 && e.parent_id === espPrincipal.id && (!busqueda || e.nombre.toLowerCase().includes(busqueda.toLowerCase())));
+            const subesp1 = especialidades.filter(e => e.nivel === 2 && e.parent_id === espPrincipal.id_especialidad && (!busqueda || e.nombre.toLowerCase().includes(busqueda.toLowerCase())));
             
             return (
-              <div key={espPrincipal.id} className="grupo-especialidad">
+              <div key={espPrincipal.id_especialidad} className="grupo-especialidad">
                 <div className="grupo-header">
                   <h4>{espPrincipal.nombre}</h4>
                   <button 
                     className="btn btn-sm btn-primary" 
-                    onClick={() => handleNuevoEnGrupo(espPrincipal.id, 2)}
+                    onClick={() => handleNuevoEnGrupo(espPrincipal.id_especialidad, 2)}
                   >
                     ➕ Nuevo
                   </button>
@@ -220,18 +358,20 @@ const Administracion: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Nombre</th>
+                        <th>Archivado</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {subesp1.length === 0 ? (
                         <tr>
-                          <td colSpan={2} className="no-data">No hay subespecialidades nivel 1</td>
+                          <td colSpan={3} className="no-data">No hay subespecialidades nivel 1</td>
                         </tr>
                       ) : (
                         subesp1.map(sub1 => (
-                          <tr key={sub1.id}>
+                          <tr key={sub1.id_especialidad}>
                             <td>{sub1.nombre}</td>
+                            <td>{sub1.archivado ? 'Sí' : 'No'}</td>
                             <td className="acciones">
                               <button 
                                 className="btn-accion btn-editar" 
@@ -240,13 +380,23 @@ const Administracion: React.FC = () => {
                               >
                                 Editar
                               </button>
-                              <button 
-                                className="btn-accion btn-archivar" 
-                                onClick={() => handleArchivar(sub1)}
-                                title="Archivar"
-                              >
-                                Archivar
-                              </button>
+                              {!sub1.archivado ? (
+                                <button 
+                                  className="btn-accion btn-archivar" 
+                                  onClick={() => handleArchivar(sub1)}
+                                  title="Archivar"
+                                >
+                                  Archivar
+                                </button>
+                              ) : (
+                                <button 
+                                  className="btn-accion btn-desarchivar" 
+                                  onClick={() => handleDesarchivar(sub1)}
+                                  title="Desarchivar"
+                                >
+                                  Desarchivar
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -261,12 +411,12 @@ const Administracion: React.FC = () => {
       );
     } else if (entidadActiva === 'subesp2') {
       // Mostrar agrupadas por subespecialidad 1
-      let subesp1List = especialidades.filter(e => !e.archivado && e.nivel === 2);
+      let subesp1List = Array.isArray(especialidades) ? especialidades.filter(e => e.nivel === 2) : [];
       
       // Filtrar solo las que tienen hijas si está activado
       if (ocultarVacias) {
         subesp1List = subesp1List.filter(sub1 => {
-          const tieneHijas = especialidades.some(e => !e.archivado && e.nivel === 3 && e.parent_id === sub1.id);
+          const tieneHijas = especialidades.some(e => e.nivel === 3 && e.parent_id === sub1.id_especialidad);
           return tieneHijas;
         });
       }
@@ -274,16 +424,16 @@ const Administracion: React.FC = () => {
       return (
         <div className="especialidades-agrupadas">
           {subesp1List.map(sub1 => {
-            const subesp2 = especialidades.filter(e => !e.archivado && e.nivel === 3 && e.parent_id === sub1.id && (!busqueda || e.nombre.toLowerCase().includes(busqueda.toLowerCase())));
-            const padre = especialidades.find(e => e.id === sub1.parent_id);
+            const subesp2 = especialidades.filter(e => e.nivel === 3 && e.parent_id === sub1.id_especialidad && (!busqueda || e.nombre.toLowerCase().includes(busqueda.toLowerCase())));
+            const padre = especialidades.find(e => e.id_especialidad === sub1.parent_id);
             
             return (
-              <div key={sub1.id} className="grupo-especialidad">
+              <div key={sub1.id_especialidad} className="grupo-especialidad">
                 <div className="grupo-header">
                   <h4>{sub1.nombre} <span className="padre-badge">({padre?.nombre})</span></h4>
                   <button 
                     className="btn btn-sm btn-primary" 
-                    onClick={() => handleNuevoEnGrupo(sub1.id, 3)}
+                    onClick={() => handleNuevoEnGrupo(sub1.id_especialidad, 3)}
                   >
                     ➕ Nuevo
                   </button>
@@ -294,18 +444,20 @@ const Administracion: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Nombre</th>
+                        <th>Archivado</th>
                         <th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {subesp2.length === 0 ? (
                         <tr>
-                          <td colSpan={2} className="no-data">No hay subespecialidades nivel 2</td>
+                          <td colSpan={3} className="no-data">No hay subespecialidades nivel 2</td>
                         </tr>
                       ) : (
                         subesp2.map(sub2 => (
-                          <tr key={sub2.id}>
+                          <tr key={sub2.id_especialidad}>
                             <td>{sub2.nombre}</td>
+                            <td>{sub2.archivado ? 'Sí' : 'No'}</td>
                             <td className="acciones">
                               <button 
                                 className="btn-accion btn-editar" 
@@ -314,13 +466,23 @@ const Administracion: React.FC = () => {
                               >
                                 Editar
                               </button>
-                              <button 
-                                className="btn-accion btn-archivar" 
-                                onClick={() => handleArchivar(sub2)}
-                                title="Archivar"
-                              >
-                                Archivar
-                              </button>
+                              {!sub2.archivado ? (
+                                <button 
+                                  className="btn-accion btn-archivar" 
+                                  onClick={() => handleArchivar(sub2)}
+                                  title="Archivar"
+                                >
+                                  Archivar
+                                </button>
+                              ) : (
+                                <button 
+                                  className="btn-accion btn-desarchivar" 
+                                  onClick={() => handleDesarchivar(sub2)}
+                                  title="Desarchivar"
+                                >
+                                  Desarchivar
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -334,7 +496,11 @@ const Administracion: React.FC = () => {
         </div>
       );
     } else if (entidadActiva === 'instituciones') {
-      items = institucionesConvenio.filter(i => !i.archivado && (!busqueda || i.nombre.toLowerCase().includes(busqueda.toLowerCase())));
+      items = Array.isArray(instituciones) ? instituciones.filter(i => {
+        const matchBusqueda = !busqueda || i.nombre.toLowerCase().includes(busqueda.toLowerCase());
+        const matchArchivado = mostrarArchivados || !i.archivado;
+        return matchBusqueda && matchArchivado;
+      }) : [];
     }
     
     // Para especialidades, instituciones, comunas, origenes - mostrar tabla normal
@@ -345,21 +511,23 @@ const Administracion: React.FC = () => {
             <tr>
               <th>Nombre</th>
               {entidadActiva === 'instituciones' && <th>Tipo</th>}
+              <th>Archivado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={entidadActiva === 'instituciones' ? 3 : 2} className="no-data">
+                <td colSpan={entidadActiva === 'instituciones' ? 4 : 3} className="no-data">
                   No hay registros disponibles
                 </td>
               </tr>
             ) : (
               items.map(item => (
-                <tr key={item.id}>
+                <tr key={item.id_comuna || item.id_origen || item.id_especialidad || item.id_institucion_convenio || item.id}>
                   <td>{item.nombre}</td>
                   {entidadActiva === 'instituciones' && <td>{item.tipo}</td>}
+                  <td>{item.archivado ? 'Sí' : 'No'}</td>
                   <td className="acciones">
                     <button 
                       className="btn-accion btn-editar" 
@@ -368,13 +536,23 @@ const Administracion: React.FC = () => {
                     >
                       Editar
                     </button>
-                    <button 
-                      className="btn-accion btn-archivar" 
-                      onClick={() => handleArchivar(item)}
-                      title="Archivar"
-                    >
-                      Archivar
-                    </button>
+                    {!item.archivado ? (
+                      <button 
+                        className="btn-accion btn-archivar" 
+                        onClick={() => handleArchivar(item)}
+                        title="Archivar"
+                      >
+                        Archivar
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn-accion btn-desarchivar" 
+                        onClick={() => handleDesarchivar(item)}
+                        title="Desarchivar"
+                      >
+                        Desarchivar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -461,7 +639,7 @@ const Administracion: React.FC = () => {
                         >
                           <option value="">-- Seleccione --</option>
                           {especialidades.filter(e => e.nivel === 1 && !e.archivado).map(e => (
-                            <option key={e.id} value={e.id}>{e.nombre}</option>
+                            <option key={e.id_especialidad} value={e.id_especialidad}>{e.nombre}</option>
                           ))}
                         </select>
                       </div>
@@ -476,7 +654,7 @@ const Administracion: React.FC = () => {
                         >
                           <option value="">-- Seleccione --</option>
                           {especialidades.filter(e => e.nivel === 2 && !e.archivado).map(e => (
-                            <option key={e.id} value={e.id}>{e.nombre}</option>
+                            <option key={e.id_especialidad} value={e.id_especialidad}>{e.nombre}</option>
                           ))}
                         </select>
                       </div>
@@ -596,7 +774,6 @@ const Administracion: React.FC = () => {
 
         <div className="contenido-administracion">
           <div className="acciones-lista">
-            {/* Buscador */}
             <div className="buscador-catalogo">
               <input
                 type="text"
@@ -619,6 +796,18 @@ const Administracion: React.FC = () => {
               </label>
             )}
             
+            {/* Checkbox para mostrar archivados */}
+            {entidadActiva !== 'subesp1' && entidadActiva !== 'subesp2' && (
+              <label className="checkbox-ocultar-vacias">
+                <input
+                  type="checkbox"
+                  checked={mostrarArchivados}
+                  onChange={(e) => setMostrarArchivados(e.target.checked)}
+                />
+                <span>Mostrar archivados</span>
+              </label>
+            )}
+            
             {/* Botón Nuevo solo para las vistas que no tienen agrupación */}
             {entidadActiva !== 'subesp1' && entidadActiva !== 'subesp2' && (
               <button className="btn btn-primary" onClick={handleNuevo}>
@@ -626,11 +815,38 @@ const Administracion: React.FC = () => {
               </button>
             )}
           </div>
-          {renderTablaItems()}
+          
+          {loading ? (
+            <div className="loading-spinner">
+              <div className="spinner"></div>
+            </div>
+          ) : (
+            renderTablaItems()
+          )}
         </div>
       </div>
 
       {renderModal()}
+
+      {/* Toast de notificaciones */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+
+      {/* Diálogo de confirmación */}
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
     </div>
   );
 };

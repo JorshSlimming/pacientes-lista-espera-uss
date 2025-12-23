@@ -4,6 +4,32 @@
 
 Sistema web completo para la gestión de listas de espera médicas de la Universidad San Sebastián. Consta de un frontend React/TypeScript que se integra con backend Supabase mediante Edge Functions.
 
+## ⚡ INICIO RÁPIDO
+
+**🎯 Para configurar y probar el sistema AHORA:**
+
+1. **Frontend:** Lee [frontend/INSTRUCCIONES.md](frontend/INSTRUCCIONES.md) para configuración paso a paso
+2. **Documentación completa:** Ve [frontend/INDICE.md](frontend/INDICE.md) para índice de documentación
+
+## 🔄 Estado de la Integración Frontend-Backend
+
+### ✅ Completado (Funcional)
+- ✅ Infraestructura de API completa
+- ✅ Autenticación y manejo de sesiones
+- ✅ Registro de pacientes con validaciones
+- ✅ Búsqueda de pacientes por RUT
+- ✅ Catálogos (comunas, orígenes, instituciones, especialidades)
+
+### ⏸️ En Proceso (Componentes temporalmente deshabilitados)
+- ⏸️ Dashboard con estadísticas
+- ⏸️ Lista de pacientes con filtros avanzados
+- ⏸️ Gestión de usuarios (CRUD)
+- ⏸️ Administración de catálogos
+
+**Ver [frontend/COMPONENTES_PENDIENTES.md](frontend/COMPONENTES_PENDIENTES.md) para detalles.**
+
+---
+
 ## 🚀 Características Principales
 
 ### ✅ Gestión de Pacientes
@@ -147,7 +173,7 @@ npx supabase db push
 ## 🔐 Credenciales de Prueba
 
 ### AdminJefe (Acceso Completo)
-- **RUT:** 21309172-7
+- **RUT:** 21309172-7 (o sin guión: 213091727)
 - **Contraseña:** USS2025
 - **Permisos:** Crear usuarios, gestionar catálogos, ver auditoría completa
 

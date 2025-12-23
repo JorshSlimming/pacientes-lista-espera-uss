@@ -1,80 +1,44 @@
-import React, { useMemo } from 'react';
-import { pacientes, seguimientos, especialidades, comunas, origenes, trabajadores } from '../mockData';
+import React, { useState, useEffect, useMemo } from 'react';
+import { adminService, EstadisticasHistoricas } from '../api/admin.service';
 import './Dashboard.css';
 
 const Dashboard: React.FC = () => {
-  const estadisticas = useMemo(() => {
-    const totalPacientes = pacientes.length;
-    const pendientes = seguimientos.filter(s => !s.agendado).length;
-    const agendados = seguimientos.filter(s => s.agendado).length;
-    const sinLlamar = seguimientos.filter(s => !s.fecha_primera_llamada).length;
-    const noContactables = pacientes.filter(p => 
-      p.obs.toLowerCase().includes('no contactable')
-    ).length;
+  const [estadisticas, setEstadisticas] = useState<EstadisticasHistoricas | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-    // Pacientes agendados esta semana
-    const hoy = new Date();
-    const inicioSemana = new Date(hoy);
-    inicioSemana.setDate(hoy.getDate() - hoy.getDay());
-    const finSemana = new Date(inicioSemana);
-    finSemana.setDate(inicioSemana.getDate() + 6);
+  useEffect(() => {
+    cargarEstadisticas();
+  }, []);
 
-    const agendadosEstaSemana = seguimientos.filter(s => {
-      if (!s.fecha_citacion) return false;
-      const fecha = new Date(s.fecha_citacion);
-      return fecha >= inicioSemana && fecha <= finSemana;
-    }).length;
+  const cargarEstadisticas = async () => {
+    setLoading(true);
+    const { data, error: err } = await adminService.obtenerEstadisticasHistoricas();
+    
+    if (err) {
+      setError(err);
+    } else if (data) {
+      setEstadisticas(data);
+    }
+    
+    setLoading(false);
+  };
 
-    // Por especialidad
-    const porEspecialidad: Record<string, number> = {};
-    seguimientos.forEach(s => {
-      if (!s.agendado) {
-        const esp = especialidades.find(e => e.id === s.id_especialidad);
-        if (esp) {
-          porEspecialidad[esp.nombre] = (porEspecialidad[esp.nombre] || 0) + 1;
-        }
-      }
-    });
+  const datosCalculados = useMemo(() => {
+    if (!estadisticas) return null;
 
-    // Por comuna
-    const porComuna: Record<string, number> = {};
-    pacientes.forEach(p => {
-      const seg = seguimientos.find(s => s.id_paciente === p.rut);
-      if (seg && !seg.agendado) {
-        const com = comunas.find(c => c.id === p.id_comuna);
-        if (com) {
-          porComuna[com.nombre] = (porComuna[com.nombre] || 0) + 1;
-        }
-      }
-    });
+    const totalPacientes = estadisticas.total_ingresos || 0;
+    const pendientes = estadisticas.pendientes || 0;
+    const agendados = estadisticas.agendados || 0;
+    const sinLlamar = 0; // No disponible en API actual
+    const noContactables = 0; // No disponible en API actual
+    const agendadosEstaSemana = 0; // No disponible en API actual
 
-    // Por origen
-    const porOrigen: Record<string, number> = {};
-    pacientes.forEach(p => {
-      const seg = seguimientos.find(s => s.id_paciente === p.rut);
-      if (seg && !seg.agendado) {
-        const ori = origenes.find(o => o.id === p.id_origen);
-        if (ori) {
-          porOrigen[ori.nombre] = (porOrigen[ori.nombre] || 0) + 1;
-        }
-      }
-    });
-
-    // Por ejecutivo
-    const porEjecutivo: Record<string, { nombre: string; ingresados: number; agendados: number }> = {};
-    seguimientos.forEach(s => {
-      const ejec = trabajadores.find(t => t.rut === s.rut_ejecutivo_ingreso);
-      if (ejec) {
-        const key = `${ejec.nombre} ${ejec.apellido}`;
-        if (!porEjecutivo[key]) {
-          porEjecutivo[key] = { nombre: key, ingresados: 0, agendados: 0 };
-        }
-        porEjecutivo[key].ingresados++;
-        if (s.agendado) {
-          porEjecutivo[key].agendados++;
-        }
-      }
-    });
+    // Top especialidades, comunas, origenes - usar datos si están disponibles
+    const topEspecialidades: [string, number][] = [];
+    const topComunas: [string, number][] = [];
+    const topOrigenes: [string, number][] = [];
+    const porEjecutivo: { nombre: string; ingresados: number; agendados: number }[] = [];
 
     return {
       totalPacientes,
@@ -83,23 +47,28 @@ const Dashboard: React.FC = () => {
       sinLlamar,
       noContactables,
       agendadosEstaSemana,
-      porEspecialidad,
-      porComuna,
-      porOrigen,
-      porEjecutivo: Object.values(porEjecutivo).sort((a, b) => b.ingresados - a.ingresados),
+      topEspecialidades,
+      topComunas,
+      topOrigenes,
+      porEjecutivo,
     };
-  }, []);
+  }, [estadisticas]);
 
-  const topEspecialidades = Object.entries(estadisticas.porEspecialidad)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5);
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <div className="loading">Cargando estadísticas...</div>
+      </div>
+    );
+  }
 
-  const topComunas = Object.entries(estadisticas.porComuna)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5);
-
-  const topOrigenes = Object.entries(estadisticas.porOrigen)
-    .sort(([, a], [, b]) => b - a);
+  if (error || !datosCalculados) {
+    return (
+      <div className="dashboard">
+        <div className="error-message">{error || 'Error al cargar datos'}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard">
@@ -112,47 +81,47 @@ const Dashboard: React.FC = () => {
         <div className="kpi-card kpi-primary">
           <div className="kpi-icon">📋</div>
           <div className="kpi-content">
-            <div className="kpi-value">{estadisticas.totalPacientes}</div>
+            <div className="kpi-value">{datosCalculados.totalPacientes}</div>
             <div className="kpi-label">Total Pacientes</div>
           </div>
         </div>
 
         <div className="kpi-card kpi-warning">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">⏳</div>
           <div className="kpi-content">
-            <div className="kpi-value">{estadisticas.pendientes}</div>
+            <div className="kpi-value">{datosCalculados.pendientes}</div>
             <div className="kpi-label">Pendientes</div>
           </div>
         </div>
 
         <div className="kpi-card kpi-success">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">✅</div>
           <div className="kpi-content">
-            <div className="kpi-value">{estadisticas.agendados}</div>
+            <div className="kpi-value">{datosCalculados.agendados}</div>
             <div className="kpi-label">Agendados</div>
           </div>
         </div>
 
         <div className="kpi-card kpi-info">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">📅</div>
           <div className="kpi-content">
-            <div className="kpi-value">{estadisticas.agendadosEstaSemana}</div>
+            <div className="kpi-value">{datosCalculados.agendadosEstaSemana}</div>
             <div className="kpi-label">Agendados Esta Semana</div>
           </div>
         </div>
 
         <div className="kpi-card kpi-danger">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">📞</div>
           <div className="kpi-content">
-            <div className="kpi-value">{estadisticas.sinLlamar}</div>
+            <div className="kpi-value">{datosCalculados.sinLlamar}</div>
             <div className="kpi-label">Sin Llamar</div>
           </div>
         </div>
 
         <div className="kpi-card kpi-dark">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">🚫</div>
           <div className="kpi-content">
-            <div className="kpi-value">{estadisticas.noContactables}</div>
+            <div className="kpi-value">{datosCalculados.noContactables}</div>
             <div className="kpi-label">No Contactables</div>
           </div>
         </div>
@@ -162,84 +131,100 @@ const Dashboard: React.FC = () => {
         <div className="chart-card">
           <h3>Top 5 Especialidades (Pendientes)</h3>
           <div className="bar-chart">
-            {topEspecialidades.map(([nombre, cantidad]) => (
-              <div key={nombre} className="bar-item">
-                <div className="bar-label">{nombre}</div>
-                <div className="bar-wrapper">
-                  <div 
-                    className="bar-fill" 
-                    style={{ width: `${(cantidad / topEspecialidades[0][1]) * 100}%` }}
-                  ></div>
-                  <span className="bar-value">{cantidad}</span>
+            {datosCalculados.topEspecialidades.length > 0 ? (
+              datosCalculados.topEspecialidades.slice(0, 5).map(([nombre, cantidad]) => (
+                <div key={nombre} className="bar-item">
+                  <div className="bar-label">{nombre}</div>
+                  <div className="bar-wrapper">
+                    <div 
+                      className="bar-fill" 
+                      style={{ width: `${(cantidad / datosCalculados.topEspecialidades[0][1]) * 100}%` }}
+                    ></div>
+                    <span className="bar-value">{cantidad}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="no-data">Sin datos disponibles</div>
+            )}
           </div>
         </div>
 
         <div className="chart-card">
           <h3>Top 5 Comunas (Pendientes)</h3>
           <div className="bar-chart">
-            {topComunas.map(([nombre, cantidad]) => (
-              <div key={nombre} className="bar-item">
-                <div className="bar-label">{nombre}</div>
-                <div className="bar-wrapper">
-                  <div 
-                    className="bar-fill" 
-                    style={{ width: `${(cantidad / topComunas[0][1]) * 100}%` }}
-                  ></div>
-                  <span className="bar-value">{cantidad}</span>
+            {datosCalculados.topComunas.length > 0 ? (
+              datosCalculados.topComunas.slice(0, 5).map(([nombre, cantidad]) => (
+                <div key={nombre} className="bar-item">
+                  <div className="bar-label">{nombre}</div>
+                  <div className="bar-wrapper">
+                    <div 
+                      className="bar-fill" 
+                      style={{ width: `${(cantidad / datosCalculados.topComunas[0][1]) * 100}%` }}
+                    ></div>
+                    <span className="bar-value">{cantidad}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="no-data">Sin datos disponibles</div>
+            )}
           </div>
         </div>
 
         <div className="chart-card">
           <h3>Origen de Pacientes (Pendientes)</h3>
           <div className="bar-chart">
-            {topOrigenes.map(([nombre, cantidad]) => (
-              <div key={nombre} className="bar-item">
-                <div className="bar-label">{nombre}</div>
-                <div className="bar-wrapper">
-                  <div 
-                    className="bar-fill bar-fill-accent" 
-                    style={{ width: `${topOrigenes[0] ? (cantidad / topOrigenes[0][1]) * 100 : 0}%` }}
-                  ></div>
-                  <span className="bar-value">{cantidad}</span>
+            {datosCalculados.topOrigenes.length > 0 ? (
+              datosCalculados.topOrigenes.map(([nombre, cantidad]) => (
+                <div key={nombre} className="bar-item">
+                  <div className="bar-label">{nombre}</div>
+                  <div className="bar-wrapper">
+                    <div 
+                      className="bar-fill bar-fill-accent" 
+                      style={{ width: `${datosCalculados.topOrigenes[0] ? (cantidad / datosCalculados.topOrigenes[0][1]) * 100 : 0}%` }}
+                    ></div>
+                    <span className="bar-value">{cantidad}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="no-data">Sin datos disponibles</div>
+            )}
           </div>
         </div>
 
         <div className="chart-card">
           <h3>Rendimiento por Ejecutivo</h3>
           <div className="tabla-ejecutivos">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ejecutivo</th>
-                  <th>Ingresados</th>
-                  <th>Agendados</th>
-                  <th>% Éxito</th>
-                </tr>
-              </thead>
-              <tbody>
-                {estadisticas.porEjecutivo.map(e => (
-                  <tr key={e.nombre}>
-                    <td>{e.nombre}</td>
-                    <td>{e.ingresados}</td>
-                    <td>{e.agendados}</td>
-                    <td>
-                      <span className="percentage">
-                        {e.ingresados > 0 ? Math.round((e.agendados / e.ingresados) * 100) : 0}%
-                      </span>
-                    </td>
+            {datosCalculados.porEjecutivo.length > 0 ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Ejecutivo</th>
+                    <th>Ingresados</th>
+                    <th>Agendados</th>
+                    <th>% Éxito</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {datosCalculados.porEjecutivo.map(e => (
+                    <tr key={e.nombre}>
+                      <td>{e.nombre}</td>
+                      <td>{e.ingresados}</td>
+                      <td>{e.agendados}</td>
+                      <td>
+                        <span className="percentage">
+                          {e.ingresados > 0 ? Math.round((e.agendados / e.ingresados) * 100) : 0}%
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="no-data">Sin datos disponibles</div>
+            )}
           </div>
         </div>
       </div>

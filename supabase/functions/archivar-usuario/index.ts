@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verificarAutenticacion, verificarRol } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,36 +13,40 @@ serve(async (req) => {
   }
 
   try {
-    const { action, rut_trabajador, userRole } = await req.json();
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Solo AdminJefe puede archivar usuarios
-    if (userRole !== 'jefe') {
-      return new Response(
-        JSON.stringify({ error: 'No tienes permisos para esta acción' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Verificar autenticación y rol de jefe
+    const trabajadorActual = await verificarAutenticacion(req, supabaseClient);
+    verificarRol(trabajadorActual, ['jefe']);
 
-    if (!rut_trabajador) {
+    const body = await req.json();
+    const { id_trabajador, action } = body;
+
+    console.log('📥 Body recibido:', body);
+    console.log('📥 id_trabajador:', id_trabajador, 'action:', action);
+
+    if (!id_trabajador) {
       return new Response(
-        JSON.stringify({ error: 'RUT del trabajador es requerido' }),
+        JSON.stringify({ error: 'ID del trabajador es requerido' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-    );
-
-    // Limpiar RUT (quitar puntos y guiones)
-    const rutLimpio = rut_trabajador.replace(/\./g, '').replace(/-/g, '');
+    if (!action) {
+      return new Response(
+        JSON.stringify({ error: 'Action es requerido (archivar o activar)' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Verificar que el usuario existe
     const { data: trabajador, error: fetchError } = await supabaseClient
       .from('trabajador')
       .select('id_trabajador, rut, rol, nombre, apellido, activo')
-      .eq('rut', rutLimpio)
+      .eq('id_trabajador', id_trabajador)
       .single();
 
     if (fetchError || !trabajador) {

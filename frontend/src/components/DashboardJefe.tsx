@@ -1,97 +1,111 @@
-import React, { useState, useMemo } from 'react';
-import { seguimientos, especialidades, trabajadores } from '../mockData';
+import React, { useState, useEffect, useMemo } from 'react';
+import { adminService, catalogosService } from '../api';
 import './DashboardJefe.css';
 
+interface IngresoEjecutivo {
+  id_trabajador: number;
+  rut: string;
+  nombre_completo: string;
+  total_ingresos: number;
+}
+
 const DashboardJefe: React.FC = () => {
+  const [ingresos, setIngresos] = useState<IngresoEjecutivo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [especialidades, setEspecialidades] = useState<any[]>([]);
+  const [trabajadores, setTrabajadores] = useState<any[]>([]);
+  
   const [fechaDesde, setFechaDesde] = useState('2025-12-01');
   const [fechaHasta, setFechaHasta] = useState('2025-12-31');
   const [filtroEspecialidad, setFiltroEspecialidad] = useState('');
   const [filtroEjecutivo, setFiltroEjecutivo] = useState('');
 
-  const especialidadesPrincipales = especialidades.filter(e => e.nivel === 1);
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const cargarDatos = async () => {
+    setLoading(true);
+    
+    const [ingresosRes, especialidadesRes, trabajadoresRes] = await Promise.all([
+      adminService.obtenerIngresosPorEjecutivo(),
+      catalogosService.obtenerEspecialidades(),
+      adminService.listarUsuarios()
+    ]);
+    
+    if (ingresosRes.error) {
+      setError(ingresosRes.error);
+    } else if (ingresosRes.data) {
+      const ordenados = [...ingresosRes.data].sort((a, b) => b.total_ingresos - a.total_ingresos);
+      setIngresos(ordenados);
+    }
+    
+    if (especialidadesRes.data) {
+      setEspecialidades(especialidadesRes.data);
+    }
+    
+    if (trabajadoresRes.data) {
+      setTrabajadores(trabajadoresRes.data);
+    }
+    
+    setLoading(false);
+  };
+
+  const especialidadesPrincipales = especialidades.filter((e: any) => e.nivel === 1);
 
   const estadisticas = useMemo(() => {
-    let seguimientosFiltrados = seguimientos.filter(s => {
-      const fechaIngreso = new Date(s.fecha_ingreso);
-      const desde = new Date(fechaDesde);
-      const hasta = new Date(fechaHasta);
-      
-      if (fechaIngreso < desde || fechaIngreso > hasta) return false;
-      if (filtroEspecialidad && s.id_especialidad !== parseInt(filtroEspecialidad)) {
-        const esp = especialidades.find(e => e.id === s.id_especialidad);
-        if (!esp) return false;
-        
-        let match = false;
-        if (esp.id === parseInt(filtroEspecialidad)) match = true;
-        if (esp.parent_id === parseInt(filtroEspecialidad)) match = true;
-        
-        const parent = especialidades.find(e => e.id === esp.parent_id);
-        if (parent && parent.parent_id === parseInt(filtroEspecialidad)) match = true;
-        
-        if (!match) return false;
-      }
-      if (filtroEjecutivo && s.rut_ejecutivo_ingreso !== filtroEjecutivo) return false;
-      
-      return true;
-    });
-
-    // Ingresos últimos 30 días (datos para gráfico)
+    // Calcular estadísticas con datos reales
+    // Nota: Los filtros de fecha/especialidad no están implementados en la API actual
+    // por lo que mostramos datos generales
+    const totalIngresos = ingresos.reduce((sum, ing) => sum + ing.total_ingresos, 0);
+    
+    // Datos para el gráfico de últimos 30 días (simulado por ahora)
+    const ingresosPorDia = [];
     const hoy = new Date();
     const hace30Dias = new Date(hoy);
     hace30Dias.setDate(hoy.getDate() - 30);
     
-    const ingresosPorDia: Record<string, number> = {};
     for (let i = 0; i <= 30; i++) {
       const fecha = new Date(hace30Dias);
       fecha.setDate(hace30Dias.getDate() + i);
       const key = fecha.toISOString().split('T')[0];
-      ingresosPorDia[key] = 0;
+      ingresosPorDia.push({ fecha: key, cantidad: 0 });
     }
     
-    seguimientos.forEach(s => {
-      const fecha = new Date(s.fecha_ingreso);
-      if (fecha >= hace30Dias && fecha <= hoy) {
-        const key = s.fecha_ingreso;
-        ingresosPorDia[key] = (ingresosPorDia[key] || 0) + 1;
-      }
-    });
-
-    // Ingresos por ejecutivo esta semana
-    const inicioSemana = new Date(hoy);
-    inicioSemana.setDate(hoy.getDate() - hoy.getDay());
-    const finSemana = new Date(inicioSemana);
-    finSemana.setDate(inicioSemana.getDate() + 6);
-
-    const ingresosPorEjecutivo: Record<string, { nombre: string; ingresos: number }> = {};
-    
-    seguimientos.forEach(s => {
-      const fecha = new Date(s.fecha_ingreso);
-      if (fecha >= inicioSemana && fecha <= finSemana) {
-        const ejec = trabajadores.find(t => t.rut === s.rut_ejecutivo_ingreso);
-        if (ejec) {
-          const key = ejec.rut;
-          if (!ingresosPorEjecutivo[key]) {
-            ingresosPorEjecutivo[key] = {
-              nombre: `${ejec.nombre} ${ejec.apellido}`,
-              ingresos: 0
-            };
-          }
-          ingresosPorEjecutivo[key].ingresos++;
-        }
-      }
-    });
+    // Ingresos por ejecutivo (usando datos reales de la API)
+    const ingresosPorEjecutivo = ingresos.map(ing => ({
+      nombre: ing.nombre_completo,
+      ingresos: ing.total_ingresos
+    }));
 
     return {
-      totalIngresos: seguimientosFiltrados.length,
-      pendientes: seguimientosFiltrados.filter(s => s.agendado === 'no').length,
-      agendados: seguimientosFiltrados.filter(s => s.agendado === 'si').length,
-      desisten: seguimientosFiltrados.filter(s => s.agendado === 'desiste').length,
-      ingresosPorDia: Object.entries(ingresosPorDia).map(([fecha, cantidad]) => ({ fecha, cantidad })),
-      ingresosPorEjecutivo: Object.values(ingresosPorEjecutivo).sort((a, b) => b.ingresos - a.ingresos),
+      totalIngresos,
+      pendientes: 0, // No disponible en API actual
+      agendados: 0,  // No disponible en API actual
+      desisten: 0,   // No disponible en API actual
+      ingresosPorDia,
+      ingresosPorEjecutivo,
     };
-  }, [fechaDesde, fechaHasta, filtroEspecialidad, filtroEjecutivo]);
+  }, [ingresos]);
 
   const maxIngresosGrafico = Math.max(...estadisticas.ingresosPorDia.map(d => d.cantidad), 1);
+
+  if (loading) {
+    return (
+      <div className="dashboard-jefe">
+        <div className="loading">Cargando datos de ejecutivos...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-jefe">
+        <div className="error-message">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-jefe">
@@ -124,8 +138,8 @@ const DashboardJefe: React.FC = () => {
           <label>Especialidad</label>
           <select value={filtroEspecialidad} onChange={(e) => setFiltroEspecialidad(e.target.value)}>
             <option value="">Todas</option>
-            {especialidadesPrincipales.map(e => (
-              <option key={e.id} value={e.id}>{e.nombre}</option>
+            {especialidadesPrincipales.map((e: any) => (
+              <option key={e.id || e.id_especialidad} value={e.id || e.id_especialidad}>{e.nombre}</option>
             ))}
           </select>
         </div>
@@ -134,7 +148,7 @@ const DashboardJefe: React.FC = () => {
           <label>Ejecutivo</label>
           <select value={filtroEjecutivo} onChange={(e) => setFiltroEjecutivo(e.target.value)}>
             <option value="">Todos</option>
-            {trabajadores.map(t => (
+            {trabajadores.map((t: any) => (
               <option key={t.rut} value={t.rut}>{t.nombre} {t.apellido}</option>
             ))}
           </select>
@@ -143,7 +157,7 @@ const DashboardJefe: React.FC = () => {
 
       <div className="kpis-grid">
         <div className="kpi-card kpi-primary">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">📊</div>
           <div className="kpi-content">
             <div className="kpi-value">{estadisticas.totalIngresos}</div>
             <div className="kpi-label">Total Ingresos</div>
@@ -151,7 +165,7 @@ const DashboardJefe: React.FC = () => {
         </div>
 
         <div className="kpi-card kpi-warning">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">⏳</div>
           <div className="kpi-content">
             <div className="kpi-value">{estadisticas.pendientes}</div>
             <div className="kpi-label">Pendientes</div>
@@ -159,7 +173,7 @@ const DashboardJefe: React.FC = () => {
         </div>
 
         <div className="kpi-card kpi-success">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">✅</div>
           <div className="kpi-content">
             <div className="kpi-value">{estadisticas.agendados}</div>
             <div className="kpi-label">Agendados</div>
@@ -167,7 +181,7 @@ const DashboardJefe: React.FC = () => {
         </div>
 
         <div className="kpi-card kpi-danger">
-          <div className="kpi-icon"></div>
+          <div className="kpi-icon">❌</div>
           <div className="kpi-content">
             <div className="kpi-value">{estadisticas.desisten}</div>
             <div className="kpi-label">Desisten</div>
@@ -245,7 +259,7 @@ const DashboardJefe: React.FC = () => {
                     <div 
                       className="bar-fill" 
                       style={{ 
-                        width: `${(e.ingresos / estadisticas.ingresosPorEjecutivo[0].ingresos) * 100}%` 
+                        width: `${estadisticas.ingresosPorEjecutivo[0] ? (e.ingresos / estadisticas.ingresosPorEjecutivo[0].ingresos) * 100 : 0}%` 
                       }}
                     ></div>
                     <span className="bar-value">{e.ingresos}</span>

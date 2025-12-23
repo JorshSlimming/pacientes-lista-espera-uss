@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { pacientes, seguimientos, especialidades, trabajadores, auditorias } from '../mockData';
-import { PacienteCompleto } from '../types';
-import { calcularEdad } from '../utils';
+import { pacientesService, catalogosService } from '../api';
+import { PacienteCompleto, Especialidad } from '../types';
+import { calcularEdad, formatearRut } from '../utils';
 import DetallePaciente from './DetallePaciente';
+import Toast from './Toast';
+import ConfirmDialog from './ConfirmDialog';
 import './ListaEspecialidades.css';
 
 interface Props {
@@ -31,68 +33,192 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
   // Estado para pacientes cargados y loading
   const [pacientesCargados, setPacientesCargados] = useState<PacienteCompleto[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(0);
+  const [totalResultados, setTotalResultados] = useState(0);
   const [modalLlamada, setModalLlamada] = useState<{ paciente: PacienteCompleto; tipo: 'primera' | 'segunda' | 'tercera' } | null>(null);
   const [fechaHoraLlamada, setFechaHoraLlamada] = useState('');
+  const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+
+  const handleEspecialidadChange = (value: string) => {
+    setFiltroEspecialidad(value);
+    setFiltroSubesp1('');
+    setFiltroSubesp2('');
+  };
+
+  const handleSubesp1Change = (value: string) => {
+    setFiltroSubesp1(value);
+    setFiltroSubesp2('');
+  };
+
+  useEffect(() => {
+    cargarEspecialidades();
+  }, []);
+
+  const cargarEspecialidades = async () => {
+    const response = await catalogosService.obtenerEspecialidades();
+    console.log('📦 Response completa:', response);
+    
+    // El backend devuelve el array directamente, pero apiClient lo envuelve en { data }
+    let especialidadesData = response.data || response;
+    
+    // Si viene como objeto {0: {...}, 1: {...}}, convertir a array
+    if (especialidadesData && typeof especialidadesData === 'object' && !Array.isArray(especialidadesData)) {
+      especialidadesData = Object.values(especialidadesData).filter(item => typeof item === 'object' && item !== null && !('success' in item));
+    }
+    
+    // Aplanar estructura jerárquica (viene con hijos anidados)
+    if (Array.isArray(especialidadesData)) {
+      const aplanadas: any[] = [];
+      especialidadesData.forEach((esp: any) => {
+        const { hijos, ...espSinHijos } = esp;
+        aplanadas.push(espSinHijos);
+        if (hijos && Array.isArray(hijos)) {
+          hijos.forEach((hijo1: any) => {
+            const { hijos: hijos2, ...hijo1SinHijos } = hijo1;
+            aplanadas.push(hijo1SinHijos);
+            if (hijos2 && Array.isArray(hijos2)) {
+              aplanadas.push(...hijos2);
+            }
+          });
+        }
+      });
+      console.log('✅ Especialidades aplanadas:', aplanadas.length);
+      setEspecialidades(aplanadas);
+    } else {
+      console.error('❌ Especialidades no es array:', especialidadesData);
+      setEspecialidades([]);
+    }
+  };
 
   const especialidadesPrincipales = useMemo(() => 
-    especialidades.filter(e => e.nivel === 1), []
+    Array.isArray(especialidades) ? especialidades.filter(e => e.nivel === 1) : [], 
+    [especialidades]
   );
 
-  // Función para buscar pacientes en mockData según filtros
-  const buscarPacientes = () => {
-    setCargando(true);
+  // Función recursiva para obtener todos los descendientes de una especialidad
+  const obtenerTodosDescendientes = (parentId: number): number[] => {
+    const hijosDirectos = especialidades.filter(e => e.parent_id === parentId);
+    let todosLosDescendientes = hijosDirectos.map(e => e.id_especialidad);
     
-    // Construir pacientes completos desde mockData
-    let resultado = pacientes.map(p => {
-      const seg = seguimientos.find(s => s.id_paciente === p.rut);
-      const esp = especialidades.find(e => e.id === seg?.id_especialidad);
-      const ejec = trabajadores.find(t => t.rut === seg?.rut_ejecutivo_ingreso);
-
-      return {
-        ...p,
-        seguimiento: seg!,
-        especialidad: esp!,
-        comuna: { id: 0, nombre: '' },
-        origen: { id: 0, nombre: '', requiere_ci: false },
-        institucion: null,
-        ejecutivo: ejec!,
-      };
+    // Recursivamente agregar descendientes de cada hijo
+    hijosDirectos.forEach(hijo => {
+      const descendientesDelHijo = obtenerTodosDescendientes(hijo.id_especialidad);
+      todosLosDescendientes = [...todosLosDescendientes, ...descendientesDelHijo];
     });
     
-    // Aplicar filtros seleccionados
-    if (filtroEspecialidad) {
-      resultado = resultado.filter(p => {
-        const esp = especialidades.find(e => e.id === p.seguimiento.id_especialidad);
-        if (!esp) return false;
-        if (esp.id === parseInt(filtroEspecialidad)) return true;
-        if (esp.parent_id === parseInt(filtroEspecialidad)) return true;
-        const parent = especialidades.find(e => e.id === esp.parent_id);
-        if (parent && parent.parent_id === parseInt(filtroEspecialidad)) return true;
-        return false;
-      });
+    return todosLosDescendientes;
+  };
+
+  // Función para buscar pacientes usando API
+  const buscarPacientes = async (cargarMas = false) => {
+    if (cargarMas) {
+      setCargandoMas(true);
+    } else {
+      setCargando(true);
+      setPaginaActual(1);
+      // Resetear resultados cuando es búsqueda nueva
+      setPacientesCargados([]);
     }
     
-    if (filtroSubesp1) {
-      resultado = resultado.filter(p => {
-        const esp = especialidades.find(e => e.id === p.seguimiento.id_especialidad);
-        if (!esp) return false;
-        if (esp.id === parseInt(filtroSubesp1)) return true;
-        if (esp.parent_id === parseInt(filtroSubesp1)) return true;
-        return false;
-      });
-    }
+    const filtros: any = {};
     
-    if (filtroSubesp2) {
-      resultado = resultado.filter(p => 
-        p.seguimiento.id_especialidad === parseInt(filtroSubesp2)
-      );
+    // Determinar qué especialidad buscar
+    // Prioridad: Sub2 > Sub1 > Especialidad principal > Todas (sin filtro)
+    // Cuando es "Todas" en un nivel, buscar todas las hijas de ese padre
+    
+    // Caso 1: Subespecialidad 2 seleccionada específicamente
+    if (filtroSubesp2 && filtroSubesp2 !== '' && filtroSubesp2 !== 'TODOS') {
+      filtros.id_especialidad = parseInt(filtroSubesp2);
+    } 
+    // Caso 2: Subespecialidad 1 seleccionada y Sub2 es "Todas" -> buscar todas las descendientes de Sub1
+    else if (filtroSubesp1 && filtroSubesp1 !== '' && filtroSubesp1 !== 'TODOS' && (filtroSubesp2 === '' || filtroSubesp2 === 'TODOS')) {
+      const parentId = parseInt(filtroSubesp1);
+      const descendientes = obtenerTodosDescendientes(parentId);
+      
+      if (descendientes.length > 0) {
+        // Incluir la sub1 misma Y todos sus descendientes
+        filtros.id_especialidad = [parentId, ...descendientes];
+      } else {
+        // Si no tiene descendientes, buscar por la sub1 misma
+        filtros.id_especialidad = parentId;
+      }
     }
+    // Caso 3: Especialidad principal seleccionada y Sub1 es "Todas" -> buscar todas las descendientes de Esp principal
+    else if (filtroEspecialidad && filtroEspecialidad !== '' && filtroEspecialidad !== 'TODOS' && (filtroSubesp1 === '' || filtroSubesp1 === 'TODOS')) {
+      const parentId = parseInt(filtroEspecialidad);
+      const descendientes = obtenerTodosDescendientes(parentId);
+      
+      if (descendientes.length > 0) {
+        // Incluir la especialidad misma Y todos sus descendientes
+        filtros.id_especialidad = [parentId, ...descendientes];
+      } else {
+        // Si no tiene descendientes, buscar por la especialidad misma
+        filtros.id_especialidad = parentId;
+      }
+    }
+    // Caso 4: Todo en "Todas" -> buscar TODAS las especialidades (sin filtro)
+    // Si no hay ninguna seleccionada, no se agrega filtro (busca todas)
     
     if (soloPendientes) {
-      resultado = resultado.filter(p => p.seguimiento.agendado === 'no');
+      filtros.agendado = 'no';
     }
     
-    setPacientesCargados(resultado);
+    const paginaParaBuscar = cargarMas ? paginaActual + 1 : 1;
+    
+    const response = await pacientesService.buscarConFiltros({ 
+      ...filtros,
+      paginacion: { page: paginaParaBuscar, per_page: 50 }
+    });
+    
+    const { data, error } = response;
+    
+    if (error) {
+      if (cargarMas) {
+        setCargandoMas(false);
+        setTotalPaginas(paginaActual);
+        return;
+      }
+      
+      const nombreEsp = filtroSubesp2 
+        ? especialidades.find(e => e.id_especialidad === parseInt(filtroSubesp2))?.nombre
+        : filtroSubesp1
+        ? especialidades.find(e => e.id_especialidad === parseInt(filtroSubesp1))?.nombre
+        : filtroEspecialidad
+        ? especialidades.find(e => e.id_especialidad === parseInt(filtroEspecialidad))?.nombre
+        : 'Todas';
+      
+      setToast({
+        message: `Error al buscar pacientes de ${nombreEsp}. Intente con otra especialidad o active "Solo pendientes" para reducir resultados.`,
+        type: 'error'
+      });
+      setCargando(false);
+      setCargandoMas(false);
+      return;
+    }
+    
+    // El backend devuelve { data: [...], paginacion: {...} } pero apiClient lo envuelve en { data: {...} }
+    const pacientesArray = data?.data || data || [];
+    const paginacion = data?.paginacion;
+    
+    const resultado = Array.isArray(pacientesArray) ? pacientesArray : [];
+    
+    if (cargarMas) {
+      setPacientesCargados(prev => [...prev, ...resultado]);
+      setPaginaActual(paginaParaBuscar);
+    } else {
+      setPacientesCargados(resultado);
+      setPaginaActual(1);
+    }
+    
+    if (paginacion) {
+      setTotalPaginas(paginacion.total_pages || 0);
+      setTotalResultados(paginacion.total || 0);
+    }
+    
     setFiltrosAplicados({
       especialidad: filtroEspecialidad,
       subesp1: filtroSubesp1,
@@ -100,42 +226,48 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
       pendientes: soloPendientes
     });
     setCargando(false);
+    setCargandoMas(false);
   };
 
   const subespecialidades1 = useMemo(() => {
-    if (!filtroEspecialidad) return [];
+    if (!filtroEspecialidad || !Array.isArray(especialidades)) return [];
     return especialidades.filter(e => 
       e.parent_id === parseInt(filtroEspecialidad) && e.nivel === 2
     );
-  }, [filtroEspecialidad]);
+  }, [filtroEspecialidad, especialidades]);
 
   const subespecialidades2 = useMemo(() => {
-    if (!filtroSubesp1) return [];
+    if (!filtroSubesp1 || !Array.isArray(especialidades)) return [];
     return especialidades.filter(e => 
       e.parent_id === parseInt(filtroSubesp1) && e.nivel === 3
     );
-  }, [filtroSubesp1]);
+  }, [filtroSubesp1, especialidades]);
 
   // Aplicar ordenamiento a los pacientes cargados (ya vienen filtrados de buscarPacientes)
   const pacientesFiltrados = useMemo(() => {
+    if (!Array.isArray(pacientesCargados)) {
+      console.error('❌ pacientesCargados no es array:', pacientesCargados);
+      return [];
+    }
+    
     let resultado = [...pacientesCargados];
 
     // Ordenar
     resultado.sort((a, b) => {
       let comparacion = 0;
       if (ordenPor === 'fecha_ingreso') {
-        comparacion = a.seguimiento.fecha_ingreso.localeCompare(b.seguimiento.fecha_ingreso);
+        comparacion = (a.seguimiento?.fecha_ingreso || '').localeCompare(b.seguimiento?.fecha_ingreso || '');
       } else if (ordenPor === 'num_llamadas') {
         const llamadasA = [
-          a.seguimiento.fecha_primera_llamada,
-          a.seguimiento.fecha_segunda_llamada,
-          a.seguimiento.fecha_tercera_llamada
+          a.seguimiento?.fecha_primera_llamada,
+          a.seguimiento?.fecha_segunda_llamada,
+          a.seguimiento?.fecha_tercera_llamada
         ].filter(f => f).length;
         
         const llamadasB = [
-          b.seguimiento.fecha_primera_llamada,
-          b.seguimiento.fecha_segunda_llamada,
-          b.seguimiento.fecha_tercera_llamada
+          b.seguimiento?.fecha_primera_llamada,
+          b.seguimiento?.fecha_segunda_llamada,
+          b.seguimiento?.fecha_tercera_llamada
         ].filter(f => f).length;
         
         comparacion = llamadasA - llamadasB;
@@ -146,35 +278,30 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     return resultado;
   }, [pacientesCargados, ordenPor, ordenDir]);
 
-  const cambiarEstadoAgendado = (paciente: PacienteCompleto, nuevoEstado: 'si' | 'no' | 'desiste') => {
-    const confirmar = window.confirm(
-      `¿Confirmar cambio de estado a "${nuevoEstado.toUpperCase()}" para ${paciente.nombre} ${paciente.primer_apellido}?`
-    );
-    
-    if (!confirmar) return;
+  const cambiarEstadoAgendado = async (paciente: PacienteCompleto, nuevoEstado: 'si' | 'no' | 'desiste') => {
+    const { error } = await pacientesService.actualizarSeguimiento({
+      id_seguimiento: paciente.seguimiento.id_seguimiento,
+      id_paciente: paciente.id_paciente,
+      agendado: nuevoEstado
+    });
 
-    const seg = seguimientos.find(s => s.id_paciente === paciente.rut);
-    if (seg) {
-      const estadoAnterior = seg.agendado;
-      seg.agendado = nuevoEstado;
-
-      // Registrar en auditoría
-      auditorias.push({
-        id: auditorias.length + 1,
-        fecha_modificacion: new Date().toISOString(),
-        campo_modificado: 'agendado',
-        valor_nuevo: nuevoEstado,
-        valor_modificado: estadoAnterior,
-        id_trabajador: '23456789-0',
-        id_paciente: paciente.rut,
-      });
-
-      onActualizar();
+    if (error) {
+      setToast({ message: 'Error al actualizar estado: ' + error, type: 'error' });
+    } else {
+      // Actualizar solo el paciente en la lista local usando id_seguimiento como identificador único
+      setPacientesCargados(prev => 
+        prev.map(p => 
+          p.seguimiento?.id_seguimiento === paciente.seguimiento.id_seguimiento
+            ? { ...p, seguimiento: { ...p.seguimiento, agendado: nuevoEstado } }
+            : p
+        )
+      );
+      setToast({ message: 'Estado actualizado correctamente', type: 'success' });
     }
   };
 
   const abrirModalLlamada = (paciente: PacienteCompleto) => {
-    const seg = seguimientos.find(s => s.id_paciente === paciente.rut);
+    const seg = paciente.seguimiento;
     if (!seg) return;
 
     let tipo: 'primera' | 'segunda' | 'tercera';
@@ -185,7 +312,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     } else if (!seg.fecha_tercera_llamada) {
       tipo = 'tercera';
     } else {
-      alert('Ya se registraron las 3 llamadas');
+      setToast({ message: 'Ya se registraron las 3 llamadas', type: 'info' });
       return;
     }
 
@@ -195,50 +322,63 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     setModalLlamada({ paciente, tipo });
   };
 
-  const confirmarRegistroLlamada = () => {
+  const confirmarRegistroLlamada = async () => {
     if (!modalLlamada || !fechaHoraLlamada) return;
 
-    const seg = seguimientos.find(s => s.id_paciente === modalLlamada.paciente.rut);
-    if (!seg) return;
-
     const fechaISO = fechaHoraLlamada.split('T')[0];
-    const { tipo } = modalLlamada;
+    const { tipo, paciente } = modalLlamada;
 
-    if (tipo === 'primera') {
-      seg.fecha_primera_llamada = fechaISO;
-    } else if (tipo === 'segunda') {
-      seg.fecha_segunda_llamada = fechaISO;
-    } else if (tipo === 'tercera') {
-      seg.fecha_tercera_llamada = fechaISO;
-      if (seg.agendado === 'no') {
-        alert('Sugerencia: Considere marcar como "desiste" si no se pudo contactar después de 3 intentos');
-      }
+    const campoFecha = 
+      tipo === 'primera' ? 'fecha_primera_llamada' :
+      tipo === 'segunda' ? 'fecha_segunda_llamada' :
+      'fecha_tercera_llamada';
+
+    const { error } = await pacientesService.actualizarSeguimiento({
+      id_seguimiento: paciente.seguimiento.id_seguimiento,
+      id_paciente: paciente.id_paciente,
+      [campoFecha]: fechaISO
+    });
+
+    if (error) {
+      setToast({ message: 'Error al registrar llamada: ' + error, type: 'error' });
+      return;
     }
 
-    // Registrar en auditoría con fecha y hora completa
-    auditorias.push({
-      id: auditorias.length + 1,
-      fecha_modificacion: new Date().toISOString(),
-      campo_modificado: `fecha_${tipo}_llamada`,
-      valor_nuevo: `${fechaHoraLlamada} (registrado)`,
-      valor_modificado: 'null',
-      id_trabajador: '23456789-0',
-      id_paciente: modalLlamada.paciente.rut,
-    });
+    if (tipo === 'tercera' && paciente.seguimiento?.agendado === 'no') {
+      setToast({ 
+        message: 'Sugerencia: Considere marcar como "desiste" si no se pudo contactar después de 3 intentos', 
+        type: 'warning' 
+      });
+    } else {
+      setToast({ message: 'Llamada registrada correctamente', type: 'success' });
+    }
+
+    // Actualizar solo el paciente en la lista local usando id_seguimiento
+    setPacientesCargados(prev => 
+      prev.map(p => {
+        if (p.seguimiento?.id_seguimiento === paciente.seguimiento.id_seguimiento) {
+          return {
+            ...p,
+            seguimiento: {
+              ...p.seguimiento,
+              [campoFecha]: fechaISO
+            }
+          };
+        }
+        return p;
+      })
+    );
 
     setModalLlamada(null);
     setFechaHoraLlamada('');
-    onActualizar();
   };
 
   const obtenerEstadoLlamadas = (p: PacienteCompleto) => {
-    const { fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada } = p.seguimiento;
+    const { fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada } = p.seguimiento || {};
     const numLlamadas = [fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada]
       .filter(f => f).length;
     return numLlamadas;
   };
-
-
 
   return (
     <div className="lista-especialidades">
@@ -280,7 +420,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
             }}>
               <option value="">Todas</option>
               {especialidadesPrincipales.map(e => (
-                <option key={e.id} value={e.id}>{e.nombre}</option>
+                <option key={e.id || e.id_especialidad} value={e.id || e.id_especialidad}>{e.nombre}</option>
               ))}
             </select>
           </div>
@@ -294,7 +434,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
               }}>
                 <option value="">Todas</option>
                 {subespecialidades1.map(e => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                  <option key={e.id || e.id_especialidad} value={e.id || e.id_especialidad}>{e.nombre}</option>
                 ))}
               </select>
             </div>
@@ -306,7 +446,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
               <select value={filtroSubesp2} onChange={(e) => setFiltroSubesp2(e.target.value)}>
                 <option value="">Todas</option>
                 {subespecialidades2.map(e => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                  <option key={e.id || e.id_especialidad} value={e.id || e.id_especialidad}>{e.nombre}</option>
                 ))}
               </select>
             </div>
@@ -314,7 +454,11 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
         </div>
         
         <div className="filtro-boton-centrado">
-          <button className="btn-buscar" onClick={buscarPacientes} disabled={cargando}>
+          <button 
+            className="btn-buscar" 
+            onClick={() => buscarPacientes()} 
+            disabled={cargando}
+          >
             {cargando ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
@@ -341,7 +485,10 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
             {cargando ? (
               <tr>
                 <td colSpan={8} className="no-data">
-                  🔄 Cargando pacientes...
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <div className="spinner"></div>
+                    Cargando pacientes...
+                  </div>
                 </td>
               </tr>
             ) : pacientesFiltrados.length === 0 ? (
@@ -353,9 +500,9 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
                 </td>
               </tr>
             ) : (
-              pacientesFiltrados.map(p => (
-                <tr key={p.rut}>
-                  <td>{p.rut}</td>
+              pacientesFiltrados.map((p, idx) => (
+                <tr key={`${p.id_paciente}-${idx}`}>
+                  <td>{formatearRut(p.rut)}</td>
                   <td>{`${p.nombre} ${p.primer_apellido} ${p.segundo_apellido}`}</td>
                   <td>{calcularEdad(p.fecha_nacimiento)} años</td>
                   <td>
@@ -369,21 +516,22 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
                   </td>
                   <td>
                     <select
-                      value={p.seguimiento.agendado}
+                      value={p.seguimiento?.agendado || 'no'}
                       onChange={(e) => cambiarEstadoAgendado(p, e.target.value as any)}
-                      className={`select-agendado agendado-${p.seguimiento.agendado}`}
+                      className={`select-agendado agendado-${p.seguimiento?.agendado || 'no'}`}
                     >
                       <option value="no">NO</option>
                       <option value="si">SÍ</option>
                       <option value="desiste">DESISTE</option>
                     </select>
                   </td>
-                  <td>{p.contacto.primer_celular}</td>
-                  <td>{p.contacto.segundo_celular}</td>
+                  <td>{p.contacto?.primer_celular || 'N/A'}</td>
+                  <td>{p.contacto?.segundo_celular || 'N/A'}</td>
                   <td>
                     <button
                       onClick={() => setPacienteSeleccionado(p)}
                       className="btn-ver-detalle"
+                      title="Ver detalle del paciente"
                     >
                       Ver Detalle
                     </button>
@@ -394,6 +542,19 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Botón cargar más */}
+      {paginaActual < totalPaginas && pacientesFiltrados.length > 0 && (
+        <div className="paginacion-container">
+          <button 
+            className="btn-cargar-mas" 
+            onClick={() => buscarPacientes(true)}
+            disabled={cargandoMas}
+          >
+            {cargandoMas ? 'Cargando...' : `Cargar más (${pacientesFiltrados.length} de ${totalResultados})`}
+          </button>
+        </div>
+      )}
 
       {/* Modal de registro de llamada */}
       {modalLlamada && (
@@ -442,8 +603,29 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
           onClose={() => setPacienteSeleccionado(null)}
           onActualizar={() => {
             setPacienteSeleccionado(null);
+            buscarPacientes();
             onActualizar();
           }}
+        />
+      )}
+
+      {/* Toast de notificaciones */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
+
+      {/* Di\u00e1logo de confirmaci\u00f3n */}
+      {confirmDialog && (
+        <ConfirmDialog
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
         />
       )}
     </div>

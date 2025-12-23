@@ -1,0 +1,141 @@
+.modal-historial {
+  background: white;
+  border-radius: 8px;
+  max-width: 700px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-historial-header {
+  padding: 1.5rem;
+  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.modal-historial-header h2 {
+  margin: 0 0 0.25rem 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.modal-historial-subtitle {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.btn-close-modal {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #95a5a6;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-close-modal:hover {
+  background: #f0f0f0;
+  color: #2c3e50;
+}
+
+.modal-historial-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.loading-historial,
+.empty-historial {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #7f8c8d;
+}
+
+.empty-historial p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.tabla-historial {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tabla-historial thead {
+  background: #f8f9fa;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tabla-historial th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #2c3e50;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.tabla-historial td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  color: #495057;
+}
+
+.tabla-historial tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.tabla-historial tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.error-historial {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.error-historial p {
+  color: #dc3545;
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.btn-retry {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.btn-retry:hover {
+  background: #5568d3;
+}
