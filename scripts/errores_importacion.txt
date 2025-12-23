@@ -1,14 +1,11 @@
-ERRORES ENCONTRADOS DURANTE EL PROCESAMIENTO
+ERRORES CRÍTICOS ENCONTRADOS DURANTE EL PROCESAMIENTO
+================================================================================
+Estos pacientes NO se procesarán o tienen problemas graves
 ================================================================================
 
-Línea 20: Nombre vacío - RUT 261362562
 Línea 25: RUT inválido o vacío - 
 Línea 41: RUT inválido o vacío - 
-Línea 44: RUT inválido o vacío - 254843997-*
 Línea 64: RUT inválido o vacío - 
-Línea 73: RUT inválido o vacío - 258961919-* 
-Línea 91: RUT inválido o vacío - 25347514.6-* 
-Línea 103: RUT inválido o vacío - 262842800-* 
 Línea 149: RUT inválido o vacío - 
 Línea 245: RUT inválido o vacío - 
 Línea 290: RUT inválido o vacío - 
@@ -19,21 +16,12 @@ Línea 373: RUT inválido o vacío -
 Línea 390: RUT inválido o vacío - 
 Línea 480: RUT inválido o vacío - 
 Línea 510: RUT inválido o vacío - 
-Línea 540: Primer apellido vacío - RUT 244696961
-Línea 545: Primer apellido vacío - RUT 270230032
 Línea 556: RUT inválido o vacío - 
 Línea 561: RUT inválido o vacío - 
-Línea 602: Primer apellido vacío - RUT 411909911
-Línea 607: Primer apellido vacío - RUT 255019422
-Línea 627: Primer apellido vacío - RUT 259597641
 Línea 632: RUT inválido o vacío - 
 Línea 638: RUT inválido o vacío - 
 Línea 643: RUT inválido o vacío - 
-Línea 652: Primer apellido vacío - RUT 248112956
-Línea 671: Primer apellido vacío - RUT 256972816
 Línea 672: RUT inválido o vacío - 
-Línea 674: Primer apellido vacío - RUT 244903436
-Línea 675: Primer apellido vacío - RUT 266617496
 Línea 696: RUT inválido o vacío - 
 Línea 697: RUT inválido o vacío - 
 Línea 726: RUT inválido o vacío - 
@@ -51,10 +39,8 @@ Línea 1202: RUT inválido o vacío -
 Línea 1212: RUT inválido o vacío - 
 Línea 1250: RUT inválido o vacío - 
 Línea 1253: RUT inválido o vacío - 
-Línea 1284: RUT inválido o vacío - 11150901-85
 Línea 1308: RUT inválido o vacío - B3349575(BOSNIA)
 Línea 1312: RUT inválido o vacío - 
-Línea 1433: RUT inválido o vacío - 9,290,498-9
 Línea 1515: RUT inválido o vacío - 
 Línea 1540: RUT inválido o vacío - nosesaberut
 Línea 1568: RUT inválido o vacío - 
@@ -65,7 +51,6 @@ Línea 1585: RUT inválido o vacío -  
 Línea 1586: RUT inválido o vacío -  
 Línea 1587: RUT inválido o vacío - 
 Línea 1596: RUT inválido o vacío -  
-Línea 1647: Primer apellido vacío - RUT 191100239
 Línea 1687: RUT inválido o vacío - 100398704-k
 Línea 1689: RUT inválido o vacío - 
 Línea 1706: RUT inválido o vacío - 
@@ -92,4 +77,7 @@ Línea 2225: RUT inválido o vacío -
 Línea 2226: RUT inválido o vacío - 
 
 ================================================================================
-Total de errores: 89
+Total de errores críticos: 72
+
+NOTA: Pacientes con datos vacíos (nombre/apellido 'Vacio', etc.)
+      se procesan normalmente con 'CORREGIR DATOS' en OBS.

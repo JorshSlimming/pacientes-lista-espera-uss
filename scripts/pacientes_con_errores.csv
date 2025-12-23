@@ -1,0 +1,73 @@
+linea,error,﻿ID,Fecha_Ingreso,Rut,Nombre,Primer_Apellido,Segundo_Apellido,Fecha_Nacimiento,Correo,Direccion,Comuna,Celular 1,Celular 2,Origen,Institución_Convenio,Fecha_Primera_Llamada,Fecha_Segunda_Llamada,Fecha_Tercera_Llamada,Agendado,Fecha_Citacion,OBS,Especialidad,Subespecialidad_1,Subespecialidad_2,Rut_Ejecutivo_Ingreso
+25,RUT inválido o vacío,24,5/12/2024,,Pia Antonia  ,Castro  ,Moran  ,1/1/2023,,,,995712005,,,,,,,no,,PCTE DE NEUROKINE;Terapia Ocupacional 2025,Medicina,T.Ocupacional,,2130
+41,RUT inválido o vacío,40,15/01/2024,,Amelia  ,Concha  ,Aguilera  ,1/1/2015,,,,930032915,,,,,,,no,,"epilepsia, transtorno de aprendizaje derivada por fonoaudiologo;Terapia Ocupacional 2025",Medicina,T.Ocupacional,,2130
+64,RUT inválido o vacío,63,26/03/2025,,Rafaela  ,Vega  ,Freire  ,1/1/2017,,,,991366192,,,,,,,no,,TEA NIVEL 1;Terapia Ocupacional 2025,Medicina,T.Ocupacional,,2130
+149,RUT inválido o vacío,148,9/10/2025,,Rosario  ,Villarroel  ,Segura  ,1/1/2017,,,,920263434,,,,,,,no,,TEA;Terapia Ocupacional 2025,Medicina,T.Ocupacional,,2130
+245,RUT inválido o vacío,244,4/7/2025,,Lucas,Solis,Miranda,-,,,,979623292,,,,,,,no,,EVALUACION DE HABLA;FONOAUDIOLOGIA INFANTIL 2025,Medicina,Fonoaudiologia,Infantil,2130
+290,RUT inválido o vacío,289,22/05/2025,,Octavio,Contreras,-,1/1/2020,,,,965758649,,,,,,,no,,PACIENTE NUEVO;FONOAUDIOLOGIA INFANTIL 2025,Medicina,Fonoaudiologia,Infantil,2130
+317,RUT inválido o vacío,316,18/06/2025,,Liam Francisco,Toro,Carvajal,1/1/2024,,,,954562878,,,,,,,no,,derivado por pediatra;FONOAUDIOLOGIA INFANTIL 2025,Medicina,Fonoaudiologia,Infantil,2130
+323,RUT inválido o vacío,322,24/06/2025,100786718-0,Amais Luisayelis,Benavides,Muñoz,1/1/2018,,,,998740429,,,,,,,no,,EVALUACION DE HABLA;FONOAUDIOLOGIA INFANTIL 2025,Medicina,Fonoaudiologia,Infantil,2130
+349,RUT inválido o vacío,348,20/07/2025,,Lian,Rosales,Espinoza,1/1/2020,,,,978570485,,,,,,,no,,lenguaje tardio;FONOAUDIOLOGIA INFANTIL 2025,Medicina,Fonoaudiologia,Infantil,2130
+373,RUT inválido o vacío,372,28/08/2025,,Jeison,Catin,Lafourie,1/1/2019,,,,934482685,,,,,,,no,,trastorno lenguaje/desorden miofuncional orofacial;FONOAUDIOLOGIA INFANTIL 2025,Medicina,Fonoaudiologia,Infantil,2130
+390,RUT inválido o vacío,389,4/11/2025,,Nicolas,Cerena,-,1/1/2019,,,,936231715,,,,,,,no,,"ecololia/t.conducta/obesi, Rut erroneo ""270410285-1"";FONOAUDIOLOGIA INFANTIL 2025",Medicina,Fonoaudiologia,Infantil,2130
+480,RUT inválido o vacío,479,7/10/2025,,Benjamin,Cuevas,Falcon,1/1/2010,,,,973452229,,,,10/9/2025,-,,no,,PACIENTE DE CONTROL-no contesta 10-09-2025 maricel;NEUROLOGIA ADULTO 2025,Medicina,Neurología Adulto,,2130
+510,RUT inválido o vacío,509,28/08/2025,,Fedora Oliver,Oliver,Espinoza,1/1/2000,,,,967869417,,,,,,,no,,paciente nuevo;NEUROLOGIA ADULTO 2025,Medicina,Neurología Adulto,,2130
+556,RUT inválido o vacío,555,5/3/2025,,vicente agustin,ramirez,ocampo,1/1/2016,,,,981301463,,,,,,,no,,"PACIENTE NUEVO, Rut extenso ""250287355-7"";NEUROLOGO INFANTIL 2025",Medicina,Neurología Pediátrica,,2130
+561,RUT inválido o vacío,560,10/3/2025,,rosario,villarroel,rios,1/1/2017,,,,936629489,,,,,,,no,,PACIENTE NUEVA;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+632,RUT inválido o vacío,631,19/04/2025,,benjamin,espinaza,ramirez,1/1/2017,,,,975207628,,,,,,,no,,PACIENTE NUEVO;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+638,RUT inválido o vacío,637,25/04/2025,,LIAM ALEXSANDER,VIZCARRA,FIGUEROA,1/1/2020,,,,989754233,930172159,,,22/07/2025,,,no,,CONTROL JULIO 2025/ NO CONTESTA 22/07  Jaz;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+643,RUT inválido o vacío,642,30/04/2025,,DUNKAN,TORRES,MOREIRA,1/1/2019,,,,931883812,,,,,,,no,,CONTROL AGOSTO 2025;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+672,RUT inválido o vacío,671,29/05/2025,,rayen,-,pradenas,1/1/2022,,,,978877877,,,,,,,no,,CONTROL SEPTIEMBRE 2025;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+696,RUT inválido o vacío,695,29/08/2025,,Florencia,Kortmann,Jara,1/1/2013,,,,974987165,,,,,,,no,,Síndrome de Turner;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+697,RUT inválido o vacío,696,29/08/2025,,Klaus,Kortmann,Jara,1/1/2010,,,,974987165,,,,,,,no,,paciente nuevo;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+726,RUT inválido o vacío,725,26/10/2025,,mauricio,rojas,muñoz,1/1/2011,,,,957149272,,,,,,,no,,control febrero 2026;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+728,RUT inválido o vacío,727,28/10/2025,,Alysson,Martínez,Martínez,1/1/2018,,,,945463520,,,,,,,no,,"PACIENTE NUEVO, Rut extenso*100747686-K ;NEUROLOGO INFANTIL 2025",Medicina,Neurología Pediátrica,,2130
+736,RUT inválido o vacío,735,11/5/2025,,Vicente,Castro,gomez,-,,,,,,,,,,,no,,;NEUROLOGO INFANTIL 2025,Medicina,Neurología Pediátrica,,2130
+862,RUT inválido o vacío,861,9/9/2025,,maria,meza,gallego, ,,,,999394973,,,,-,,,no,,paciente nuevo dr wagemann; DERMATOLOGIA 2025,Medicina,Dermatología,,2130
+952,RUT inválido o vacío,951,21/10/2025,,antonio,careaga,paris,1/1/2006,,,,959373527,,,,,,,no,,paciente nuevo dr montoya; DERMATOLOGIA 2025,Medicina,Dermatología,,2130
+994,RUT inválido o vacío,993,11/3/2025,,Carlo,Maldonado,castro,1/1/1971,,,,956715069,,,,,,,no,,paciente nueva; DERMATOLOGIA 2025,Medicina,Dermatología,,2130
+995,RUT inválido o vacío,994,11/3/2025,,madeleyne,Neira,ferrada,1/1/2011,,,,973378435,,,,,,,no,,"paciente nueva, rut 2e675357-3*; DERMATOLOGIA 2025",Medicina,Dermatología,,2130
+1053,RUT inválido o vacío,1052,4/12/2025,,maria jesus ,valderrama,rivas,1/1/2016,,,,957008160,,,,,,,no,,LLAMAR EN ENERO ;odontologia general ; ODONTOLOGIA,Odontología,,,2130
+1056,RUT inválido o vacío,1055,15/04/2025,,LUIS ,NAVARRETE ,,,,,,959184253,,,,3/1/2025,,,no,,NO CONTESTA 03-01-25;ENDODONCIA  ; ODONTOLOGIA,Odontología,,,2130
+1094,RUT inválido o vacío,1093,23/05/2025,,FELIPE,ROA,RUMINOT,1/1/2012,,,,949673452,,,,,,,no,,n/c 02-10;ODONTOLOGIA/COLMILLO MAL PUESTO/ORTODONCIA ; ODONTOLOGIA,Odontología,,,2130
+1104,RUT inválido o vacío,1103,6/2/2025,,CARLOS,GONZALEZ,MOLINA,1/1/1967,,,,988360196,,,,7/1/2025,14/01/2025,,no,,NO CONTESTA 07-01-2025-14-01;ODONTOLOGIA/PROTESIS  ; ODONTOLOGIA,Odontología,,,2130
+1202,RUT inválido o vacío,1201,31/08/2025,,Agustín Antülaf Eluney ,Raimán,Castillo,,,,,986285856,,,,,,,no,,continuidad de tratamiento ; ODONTOLOGIA,Odontología,,,2130
+1212,RUT inválido o vacío,1211,31/08/2025,,victoria sofia,castro,torres,1/1/2010,,,,990768974,,,,13/03/2025,,,no,,"evaluacion general(hija de david castro ayuda al julio, preguntar porque no tiene rut );NO CONTESTA 13-03 ; ODONTOLOGIA",Odontología,,,2130
+1250,RUT inválido o vacío,1249,31/08/2025,,SANDRA,ARREDONDO,ROCA,1/1/1969,,,,976209968,,,,25/03/2025,,,no,,evaluacion general/ no contesta 25/03 ; ODONTOLOGIA,Odontología,,,2130
+1253,RUT inválido o vacío,1252,31/08/2025,,ludys,carvajal,rivera,,,,,933345600,,,,26/03/2025,,,no,,evaluacion general/no contesta 26-03 ; ODONTOLOGIA,Odontología,,,2130
+1308,RUT inválido o vacío,1307,24/09/2025,B3349575(BOSNIA),ENES ,ZONIC,,1/1/1987,,,,956874341,,,,,,,no,,EVALUACION GENERAL;CONSULTAR SI PUDO CONSEGUIR RUT ; ODONTOLOGIA,Odontología,,,2130
+1312,RUT inválido o vacío,1311,24/09/2025,,Eloísa Alexandra,rojas,Meléndez,1/1/2005,,,,926242982,,,,,,,no,,ODONTOLOGIA GENERAL ; ODONTOLOGIA,Odontología,,,2130
+1515,RUT inválido o vacío,1514,24/09/2025,,Susana,Espinoza,Quiroz,,,,,965870830,,,,,,,no,,evaluacion general ; ODONTOLOGIA,Odontología,,,2130
+1540,RUT inválido o vacío,1539,24/09/2025,nosesaberut,carlos,aguayo,perez,1/1/1958,,,,981738735,,,,,,,no,,postgrado de r. oral ; ODONTOLOGIA,Odontología,,,2130
+1568,RUT inválido o vacío,1567,24/09/2025,,Vanessa,Fernández,Fernández,,,,,938728332,,,,,,,no,,EVALUACION GENERAL ; ODONTOLOGIA,Odontología,,,2130
+1582,RUT inválido o vacío,1581,24/09/2025, ,ann,Oyandel,Ramirez,,,,,969054851,,,,,,,no,,EVALUACION GENERAL ; ODONTOLOGIA,Odontología,,,2130
+1583,RUT inválido o vacío,1582,24/09/2025, ,Tannia,Becerra,,,,,,979971184,,,,,,,no,,EVALUACION GENERAL;CEAT ; ODONTOLOGIA,Odontología,,,2130
+1584,RUT inválido o vacío,1583,24/09/2025, ,Ruben,Saldias,,,,,,990934961,,,,,,,no,,EVALUACION GENERAL;CEAT ; ODONTOLOGIA,Odontología,,,2130
+1585,RUT inválido o vacío,1584,24/09/2025, ,Pablo,Vergara,,,,,,952042681,,,,,,,no,,EVALUACION GENERAL;CEAT ; ODONTOLOGIA,Odontología,,,2130
+1586,RUT inválido o vacío,1585,24/09/2025, ,Jose,Luis,Navarrete,,,,,935235747,,,,,,,no,,EVALUACION GENERAL;CEAT ; ODONTOLOGIA,Odontología,,,2130
+1587,RUT inválido o vacío,1586,24/09/2025,,Edith,Araya,,,,,,986083583,,,,,,,no,,EVALUACION GENERAL;CEAT ; ODONTOLOGIA,Odontología,,,2130
+1596,RUT inválido o vacío,1595,24/09/2025, ,Ricardo,Yevilao,,,,,,966922062,,,,,,,no,,EVALUACION GENERAL ; ODONTOLOGIA,Odontología,,,2130
+1687,RUT inválido o vacío,1686,24/09/2025,100398704-k,eduardo,villasmin,,1/1/2013,,,,984742395,,,,,,,no,,colmillos momntados mas los de leche ; ODONTOLOGIA,Odontología,,,2130
+1689,RUT inválido o vacío,1688,24/09/2025,,franco ,torres,castillo,1/1/2005,,,,979034446,,,,26/06/2025,,,no,,evaluacion general/muela del juicio;buzon de voz 26-06 ; ODONTOLOGIA,Odontología,,,2130
+1706,RUT inválido o vacío,1705,24/09/2025,,tannia,becerra,,,,,,979971184,,,,30/06/2025,,,no,,"CEAT;se llama paciente en multiples ocasiones y de diferente celular, sin embargo no contesta 30-06 ; ODONTOLOGIA",Odontología,,,2130
+1707,RUT inválido o vacío,1706,24/09/2025,,jose luis,navarrete,,,,,,935235747,,,,30/06/2025,,,no,,"CEAT;se llama paciente en multiples ocasiones y de diferente celular, sin embargo no contesta 30-06 ; ODONTOLOGIA",Odontología,,,2130
+1708,RUT inválido o vacío,1707,24/09/2025,,edith,araya,,,,,,986083583,,,,30/06/2025,,,no,,"CEAT;se llama paciente en multiples ocasiones y de diferente celular, sin embargo no contesta o figura con buzon de voz 30-06 ; ODONTOLOGIA",Odontología,,,2130
+1805,RUT inválido o vacío,1804,24/09/2025,,jonny,mejias,novoa,1/1/1986,,,,934112103,,,,,,,no,,evaluacion general ; ODONTOLOGIA,Odontología,,,2130
+1846,RUT inválido o vacío,1845,24/09/2025,160110135-6,cristopher,zambrano,reyez,,,,,961572300,,,,,,,no,,ev general  ; ODONTOLOGIA,Odontología,,,2130
+1853,RUT inválido o vacío,1852,24/09/2025,,Cynthia, valencia, vargas ,,,,,961696961,,,,,,,no,,EV GENERAL  ; ODONTOLOGIA,Odontología,,,2130
+1915,RUT inválido o vacío,1914,24/09/2025,,JOAQUIN LEON,ACUÑA ,DUN,1/1/2020,,,,942725011,,,,,,,no,,EVALUACION GENERAL ; ODONTOLOGIA,Odontología,,,2130
+1952,RUT inválido o vacío,1951,10/2/2025,,BARBARA,RIVAS,,1/1/2011,,,,986302939,,,,,,,no,,EVALUACION GENERAL ; ODONTOLOGIA,Odontología,,,2130
+1971,RUT inválido o vacío,1970,10/2/2025,,Camila ,Salazar,Escobar,,,,,946699587,,,,,,,no,,Pcte se contacta por correo para evaluación por diente roto;camila.salas.escobar@gmail.com ; ODONTOLOGIA,Odontología,,,2130
+1985,RUT inválido o vacío,1984,15/10/2025,,carlos enrique,cordova,morales,1/1/2002,,,,974429232,,,,,,,no,,evaluación general ; ODONTOLOGIA,Odontología,,,2130
+2052,RUT inválido o vacío,2051,15/10/2025,,Simon ,Renalqueo,Barra,1/1/2013,,,,973411702,,,,,,,no,,postgrado de ortodoncia ; ODONTOLOGIA,Odontología,,,2130
+2063,RUT inválido o vacío,2062,15/10/2025,,katherine,herrera ,arias,,,,,952075244,,,,,,,no,,ortodoncia ; ODONTOLOGIA,Odontología,,,2130
+2078,RUT inválido o vacío,2077,15/10/2025,,Hernan ,Dilinger,Vargas,1/1/2001,,,,945412491,,,,,,,no,,odontologia general ; ODONTOLOGIA,Odontología,,,2130
+2081,RUT inválido o vacío,2080,15/10/2025,,Eva,Ceballo,paredes,1/1/1977,,,,934814152,,,,,,,no,,evaluación general (posible protesis) ; ODONTOLOGIA,Odontología,,,2130
+2093,RUT inválido o vacío,2092,11/3/2025,,Victoria,Soto,Jara,,,,,981550142,,,,,,,no,,incrustacion 2.7 ; ODONTOLOGIA,Odontología,,,2130
+2102,RUT inválido o vacío,2101,11/3/2025,100563709-7,aaron ,peñaloza,,1/1/2015,,,,965909250,,,,,,,no,,odontopediatria ; ODONTOLOGIA,Odontología,,,2130
+2103,RUT inválido o vacío,2102,11/3/2025,100563703-8,andrea ,peñaloza,,1/1/2016,,,,965909250,,,,,,,no,,odontopediatria ; ODONTOLOGIA,Odontología,,,2130
+2132,RUT inválido o vacío,2131,11/3/2025,213340302-5,Manuela,García,,1/1/2003,,,,954550800,,,,,,,no,,evaluacion general ; ODONTOLOGIA,Odontología,,,2130
+2135,RUT inválido o vacío,2134,11/3/2025,,ivan,campos,,,,,,993183641,,,,,,,no,,evaluacion general ; ODONTOLOGIA,Odontología,,,2130
+2160,RUT inválido o vacío,2159,11/3/2025,,BARBARA,RIVAS,ESPINOZA,1/1/2007,,,,962257755,949972542,,,,,,no,,POSTGRADO ORTODONCIA ; ODONTOLOGIA,Odontología,,,2130
+2225,RUT inválido o vacío,2224,11/11/2025,,diego,vergara,mendoza,1/1/1989,,,,983196916,,,,,,,no,,evaluacion general ; ODONTOLOGIA,Odontología,,,2130
+2226,RUT inválido o vacío,2225,11/11/2025,,yasna ,matamala,villagran,1/1/1984,,,,983196916,,,,,,,no,,evaluacion general ; ODONTOLOGIA,Odontología,,,2130

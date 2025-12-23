@@ -61,6 +61,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [mensajeRutExistente, setMensajeRutExistente] = useState('');
   const [datosYaCargados, setDatosYaCargados] = useState(false);
   const [cargandoCatalogos, setCargandoCatalogos] = useState(true);
 
@@ -131,6 +132,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
       
       if (pacienteExistente) {
         setDatosYaCargados(true);
+        setMensajeRutExistente('✓ Paciente existente. Puede registrar una nueva especialidad o actualizar datos.');
         // Cargar datos del paciente
         setNombre(pacienteExistente.nombre);
         setPrimerApellido(pacienteExistente.primer_apellido);
@@ -175,9 +177,8 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
           }
         }
         
-        // Mostrar mensaje en Toast
-        setMensaje('Paciente existente. Puede registrar una nueva especialidad o actualizar datos.');
-        setTimeout(() => setMensaje(''), 5000);
+        setMensajeRutExistente('✓ Paciente existente. Puede registrar una nueva especialidad o actualizar datos.');
+        setTimeout(() => setMensajeRutExistente(''), 6000);
       }
     }
   };
@@ -355,6 +356,13 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
   return (
     <div className="nuevo-paciente-form">
       <form onSubmit={handleSubmit} className="form-compacto">
+        {/* Mensaje de paciente existente */}
+        {mensajeRutExistente && (
+          <div className="info-rut-existente" style={{ marginBottom: '1rem', padding: '0.75rem', borderRadius: '4px', backgroundColor: '#d4edda' }}>
+            {mensajeRutExistente}
+          </div>
+        )}
+
         {/* Sección de Especialidad - Arriba */}
         <div className="seccion-especialidad">
           <div className="form-grid-3col">
@@ -409,6 +417,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
                 const valor = e.target.value.replace(/[^0-9kK-]/g, '');
                 setRut(valor);
                 setDatosYaCargados(false);
+                setMensajeRutExistente('');
                 
                 if (valor && valor.length > 1) {
                   if (!validarFormatoRut(valor)) {
@@ -620,12 +629,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
       {mensaje && (
         <Toast 
           message={mensaje} 
-          type={
-            mensaje.includes('Error') || mensaje.includes('error') ? 'error' : 
-            mensaje.includes('complete todos los campos') || mensaje.includes('obligatorio') ? 'warning' :
-            mensaje.includes('existente') || mensaje.includes('actualizar datos') ? 'info' :
-            'success'
-          } 
+          type={mensaje.includes('Error') || mensaje.includes('error') ? 'error' : 'success'} 
           onClose={() => setMensaje('')} 
         />
       )}

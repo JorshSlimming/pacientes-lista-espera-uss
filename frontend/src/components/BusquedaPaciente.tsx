@@ -18,7 +18,6 @@ const BusquedaPaciente: React.FC = () => {
   } | null>(null);
   const [error, setError] = useState('');
   const [buscando, setBuscando] = useState(false);
-  const [ordenFechaDesc, setOrdenFechaDesc] = useState(true); // true = descendente (más reciente primero)
 
   const buscarPaciente = async () => {
     setError('');
@@ -134,28 +133,13 @@ const BusquedaPaciente: React.FC = () => {
           <div className="agendamientos-card">
             <div className="agendamientos-header">
               <h3>Agendamientos ({pacienteEncontrado.seguimiento?.length || 0})</h3>
-              {pacienteEncontrado.seguimiento && pacienteEncontrado.seguimiento.length > 1 && (
-                <button 
-                  onClick={() => setOrdenFechaDesc(!ordenFechaDesc)}
-                  className="btn-ordenar"
-                  title={ordenFechaDesc ? 'Ordenar: Más antiguo primero' : 'Ordenar: Más reciente primero'}
-                >
-                  {ordenFechaDesc ? '↓ Reciente' : '↑ Antiguo'}
-                </button>
-              )}
             </div>
 
             {!pacienteEncontrado.seguimiento || pacienteEncontrado.seguimiento.length === 0 ? (
               <div className="no-data">Sin información de seguimiento</div>
             ) : (
               <div className="agendamientos-lista">
-                {[...pacienteEncontrado.seguimiento]
-                  .sort((a: any, b: any) => {
-                    const fechaA = new Date(a.fecha_ingreso).getTime();
-                    const fechaB = new Date(b.fecha_ingreso).getTime();
-                    return ordenFechaDesc ? fechaB - fechaA : fechaA - fechaB;
-                  })
-                  .map((seg: any, index: number) => (
+                {pacienteEncontrado.seguimiento.map((seg: any, index: number) => (
                   <div key={seg.id_seguimiento || index} className="agendamiento-item">
                     <div className="agendamiento-header-item">
                       <div className="agendamiento-especialidad">
@@ -178,7 +162,7 @@ const BusquedaPaciente: React.FC = () => {
                             className="btn-historial-small"
                             title="Ver historial de cambios"
                           >
-                            Historial
+                            📜
                           </button>
                         )}
                       </div>
@@ -233,7 +217,7 @@ const BusquedaPaciente: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  ))}
+                ))}
               </div>
             )}
           </div>
