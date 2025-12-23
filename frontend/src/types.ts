@@ -90,22 +90,14 @@ export interface Seguimiento {
 }
 
 export interface Auditoria {
-  id_auditoria: number;
-  fecha_cambio: string;
-  cambios: {
-    agendado?: { anterior: string; nuevo: string };
-    fecha_primera_llamada?: { anterior: string | null; nuevo: string };
-    fecha_segunda_llamada?: { anterior: string | null; nuevo: string };
-    fecha_tercera_llamada?: { anterior: string | null; nuevo: string };
-    obs?: { anterior: string; nuevo: string };
-  };
-  usuario_modificador: {
+  fecha_modificacion: string;
+  trabajador?: {
     nombre: string;
     apellido: string;
   };
-  id_trabajador: number;
-  id_paciente: number;
-  id_seguimiento: number;
+  campo_modificado: string;
+  valor_modificado: string | null;
+  valor_nuevo: string | null;
 }
 
 export interface PacienteCompleto extends Paciente {

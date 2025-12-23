@@ -30,48 +30,33 @@ const ModalHistorial: React.FC<ModalHistorialProps> = ({
   const cargarHistorial = async () => {
     setCargando(true);
     setError('');
-    const { data, error: apiError } = await pacientesService.obtenerHistorialCambios(idPaciente, idSeguimiento);
-    if (apiError) {
-      setError(apiError);
-    } else if (data) {
-      setHistorial(data);
+    try {
+      const response = await pacientesService.obtenerHistorialCambios(idPaciente, idSeguimiento);
+      const { data, error: apiError } = response;
+      if (apiError) {
+        console.error('❌ Error al cargar historial:', apiError);
+        setError(apiError);
+        setHistorial([]);
+        return;
+      }
+      // El backend puede devolver { success: true, historial: [...] } o directamente el array
+      const historialArray = data?.historial || data?.data || data || [];
+      if (Array.isArray(historialArray)) {
+        setHistorial(historialArray);
+      } else {
+        console.error('❌ Historial no es array:', data);
+        setHistorial([]);
+      }
+    } catch (err: any) {
+      console.error('❌ Error en cargarHistorial:', err);
+      setError(err.message || 'Error desconocido');
+      setHistorial([]);
+    } finally {
+      setCargando(false);
     }
-    setCargando(false);
   };
 
-  const formatearCambios = (cambios: any) => {
-    if (!cambios) return 'Sin cambios registrados';
-    
-    const cambiosFormateados: string[] = [];
-    
-    if (cambios.agendado) {
-      const valorAnterior = cambios.agendado.anterior || 'no';
-      const valorNuevo = cambios.agendado.nuevo || 'no';
-      cambiosFormateados.push(`Estado: ${valorAnterior.toUpperCase()} → ${valorNuevo.toUpperCase()}`);
-    }
-    
-    if (cambios.fecha_primera_llamada) {
-      cambiosFormateados.push(`1ra llamada: ${formatearFecha(cambios.fecha_primera_llamada.nuevo)}`);
-    }
-    
-    if (cambios.fecha_segunda_llamada) {
-      cambiosFormateados.push(`2da llamada: ${formatearFecha(cambios.fecha_segunda_llamada.nuevo)}`);
-    }
-    
-    if (cambios.fecha_tercera_llamada) {
-      cambiosFormateados.push(`3ra llamada: ${formatearFecha(cambios.fecha_tercera_llamada.nuevo)}`);
-    }
-    
-    if (cambios.obs) {
-      const obsAnterior = cambios.obs.anterior || 'Sin observaciones';
-      const obsNuevo = cambios.obs.nuevo || 'Sin observaciones';
-      cambiosFormateados.push(`Observaciones actualizadas`);
-    }
-    
-    return cambiosFormateados.length > 0 
-      ? cambiosFormateados.join(' • ') 
-      : 'Sin cambios registrados';
-  };
+  // No necesitamos formatear cambios, usaremos la estructura del backend directamente
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -99,25 +84,29 @@ const ModalHistorial: React.FC<ModalHistorialProps> = ({
               <p>No hay cambios registrados para este agendamiento</p>
             </div>
           ) : (
-            <div className="historial-timeline">
-              {historial.map((item, index) => (
-                <div key={item.id_auditoria || index} className="historial-item">
-                  <div className="historial-marker"></div>
-                  <div className="historial-content">
-                    <div className="historial-header-item">
-                      <span className="historial-fecha">
-                        {formatearFecha(item.fecha_cambio)}
-                      </span>
-                      <span className="historial-usuario">
-                        {item.usuario_modificador?.nombre} {item.usuario_modificador?.apellido}
-                      </span>
-                    </div>
-                    <div className="historial-cambios">
-                      {formatearCambios(item.cambios)}
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="tabla-historial-container">
+              <table className="tabla-historial">
+                <thead>
+                  <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Usuario</th>
+                    <th>Campo</th>
+                    <th>Valor Anterior</th>
+                    <th>Valor Nuevo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historial.map((item, index) => (
+                    <tr key={index}>
+                      <td>{new Date(item.fecha_modificacion).toLocaleString('es-CL')}</td>
+                      <td>{item.trabajador ? `${item.trabajador.nombre} ${item.trabajador.apellido}` : 'Sistema'}</td>
+                      <td>{item.campo_modificado}</td>
+                      <td>{item.valor_modificado || '(vacío)'}</td>
+                      <td>{item.valor_nuevo || '(vacío)'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

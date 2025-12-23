@@ -356,12 +356,7 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
   return (
     <div className="nuevo-paciente-form">
       <form onSubmit={handleSubmit} className="form-compacto">
-        {/* Mensaje de paciente existente */}
-        {mensajeRutExistente && (
-          <div className="info-rut-existente" style={{ marginBottom: '1rem', padding: '0.75rem', borderRadius: '4px', backgroundColor: '#d4edda' }}>
-            {mensajeRutExistente}
-          </div>
-        )}
+        {/* No mostrar mensaje de paciente existente aquí */}
 
         {/* Sección de Especialidad - Arriba */}
         <div className="seccion-especialidad">
@@ -629,8 +624,17 @@ const NuevoPacienteForm: React.FC<Props> = ({ onSuccess }) => {
       {mensaje && (
         <Toast 
           message={mensaje} 
-          type={mensaje.includes('Error') || mensaje.includes('error') ? 'error' : 'success'} 
+          type={mensaje.includes('Error') || mensaje.includes('error') ? 'error' : mensaje.includes('complete todos los campos') ? 'warning' : 'success'} 
           onClose={() => setMensaje('')} 
+        />
+      )}
+      
+      {/* Toast para paciente existente */}
+      {mensajeRutExistente && (
+        <Toast 
+          message={mensajeRutExistente} 
+          type="info" 
+          onClose={() => setMensajeRutExistente('')} 
         />
       )}
     </div>

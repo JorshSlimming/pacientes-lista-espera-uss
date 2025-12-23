@@ -1,7 +1,7 @@
 .modal-historial {
   background: white;
   border-radius: 8px;
-  max-width: 700px;
+  max-width: 900px;
   width: 90%;
   max-height: 80vh;
   display: flex;
@@ -79,39 +79,76 @@
   font-size: 1rem;
 }
 
-.tabla-historial {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
+.historial-timeline {
+  position: relative;
+  padding-left: 2rem;
 }
 
-.tabla-historial thead {
-  background: #f8f9fa;
-  position: sticky;
+.historial-timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
   top: 0;
-  z-index: 1;
+  bottom: 0;
+  width: 2px;
+  background: #e0e0e0;
 }
 
-.tabla-historial th {
-  padding: 0.75rem;
-  text-align: left;
-  font-weight: 600;
-  color: #2c3e50;
-  border-bottom: 2px solid #dee2e6;
+.historial-item {
+  position: relative;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
 }
 
-.tabla-historial td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #e9ecef;
-  color: #495057;
+.historial-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
-.tabla-historial tbody tr:hover {
+.historial-marker {
+  position: absolute;
+  left: -1.5rem;
+  top: 0.25rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #667eea;
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px #667eea;
+}
+
+.historial-content {
   background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 3px solid #667eea;
 }
 
-.tabla-historial tbody tr:last-child td {
-  border-bottom: none;
+.historial-header-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.historial-fecha {
+  font-size: 0.85rem;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.historial-usuario {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.historial-cambios {
+  font-size: 0.9rem;
+  color: #2c3e50;
+  line-height: 1.6;
 }
 
 .error-historial {
@@ -138,4 +175,42 @@
 
 .btn-retry:hover {
   background: #5568d3;
+}
+
+/* Tabla de historial */
+.tabla-historial-container {
+  overflow-x: auto;
+}
+
+.tabla-historial {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.tabla-historial thead {
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.tabla-historial th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.tabla-historial td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  color: #212529;
+}
+
+.tabla-historial tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.tabla-historial tbody tr:last-child td {
+  border-bottom: none;
 }

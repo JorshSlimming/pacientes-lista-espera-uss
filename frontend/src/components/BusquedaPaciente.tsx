@@ -9,7 +9,9 @@ import './BusquedaPaciente.css';
 const BusquedaPaciente: React.FC = () => {
   const { hasRole } = useAuth();
   const [rutBusqueda, setRutBusqueda] = useState('');
+  const [rutError, setRutError] = useState('');
   const [pacienteEncontrado, setPacienteEncontrado] = useState<PacienteCompleto | null>(null);
+  const [ordenFechaIngreso, setOrdenFechaIngreso] = useState<'desc' | 'asc'>('desc');
   const [historialSeleccionado, setHistorialSeleccionado] = useState<{
     idPaciente: number;
     idSeguimiento: number;
@@ -27,13 +29,14 @@ const BusquedaPaciente: React.FC = () => {
       return;
     }
 
-    // Normalizar el RUT ingresado para validación y búsqueda
-    const rutNormalizado = rutBusqueda.replace(/\./g, '').replace(/-/g, '').trim();
-    
-    if (!validarRut(rutNormalizado)) {
-      setError('RUT inválido. Verifique el formato y dígito verificador.');
+    // Si hay error de validación, no buscar
+    if (rutError) {
+      setError(rutError);
       return;
     }
+
+    // Normalizar el RUT ingresado para búsqueda
+    const rutNormalizado = rutBusqueda.replace(/\./g, '').replace(/-/g, '').trim();
 
     setBuscando(true);
     const { data, error: apiError } = await pacientesService.buscarPorRut(rutNormalizado);
@@ -48,6 +51,35 @@ const BusquedaPaciente: React.FC = () => {
     setPacienteEncontrado(data);
   };
 
+  const handleRutChange = (valor: string) => {
+    // Solo permitir números, guión y k/K
+    const valorLimpio = valor.replace(/[^0-9kK-]/g, '');
+    setRutBusqueda(valorLimpio);
+    
+    // Limpiar errores previos
+    setRutError('');
+    setError('');
+    
+    // Si está vacío, no validar
+    if (!valorLimpio.trim()) {
+      return;
+    }
+    
+    // Validar formato numero-digito
+    const formatoValido = /^\d+-[\dkK]$/.test(valorLimpio);
+    if (!formatoValido) {
+      setRutError('Formato inválido. Use: numero-digito (ej: 12345678-9)');
+      return;
+    }
+    
+    // Validar dígito verificador
+    const rutNormalizado = valorLimpio.replace(/\./g, '').replace(/-/g, '').trim();
+    if (!validarRut(rutNormalizado)) {
+      setRutError('Dígito verificador incorrecto');
+      return;
+    }
+  };
+
   const obtenerEstadoLlamadas = (seg: any) => {
     const { fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada } = seg;
     const numLlamadas = [fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada]
@@ -59,15 +91,20 @@ const BusquedaPaciente: React.FC = () => {
     <div className="busqueda-paciente">
       <div className="busqueda-form">
         <div className="busqueda-input-group">
-          <input
-            type="text"
-            value={rutBusqueda}
-            onChange={(e) => setRutBusqueda(e.target.value)}
-            placeholder="Ingrese RUT (ej: 12345678-9)"
-            onKeyPress={(e) => e.key === 'Enter' && buscarPaciente()}
-            disabled={buscando}
-          />
-          <button onClick={buscarPaciente} className="btn-buscar" disabled={buscando}>
+          <div className="input-con-validacion">
+            <input
+              type="text"
+              value={rutBusqueda}
+              onChange={(e) => handleRutChange(e.target.value)}
+              placeholder="Ingrese RUT (ej: 12345678-9)"
+              onKeyPress={(e) => e.key === 'Enter' && buscarPaciente()}
+              disabled={buscando}
+              className={rutError ? 'input-error' : rutBusqueda && !rutError ? 'input-success' : ''}
+            />
+            {rutError && <span className="error-inline">{rutError}</span>}
+            {rutBusqueda && !rutError && <span className="success-inline">✓ RUT válido</span>}
+          </div>
+          <button onClick={buscarPaciente} className="btn-buscar" disabled={buscando || !!rutError}>
             {buscando ? 'Buscando...' : 'Buscar'}
           </button>
         </div>
@@ -133,13 +170,27 @@ const BusquedaPaciente: React.FC = () => {
           <div className="agendamientos-card">
             <div className="agendamientos-header">
               <h3>Agendamientos ({pacienteEncontrado.seguimiento?.length || 0})</h3>
+              <button
+                onClick={() => setOrdenFechaIngreso(ordenFechaIngreso === 'desc' ? 'asc' : 'desc')}
+                className="btn-ordenar"
+                title={`Ordenar por fecha de ingreso ${ordenFechaIngreso === 'desc' ? 'ascendente' : 'descendente'}`}
+              >
+                Fecha Ingreso {ordenFechaIngreso === 'desc' ? '↓' : '↑'}
+              </button>
             </div>
 
             {!pacienteEncontrado.seguimiento || pacienteEncontrado.seguimiento.length === 0 ? (
               <div className="no-data">Sin información de seguimiento</div>
             ) : (
               <div className="agendamientos-lista">
-                {pacienteEncontrado.seguimiento.map((seg: any, index: number) => (
+                {[...pacienteEncontrado.seguimiento]
+                  .sort((a: any, b: any) => {
+                    // Ordenar por fecha_ingreso según el estado de ordenFechaIngreso
+                    const fechaA = new Date(a.fecha_ingreso).getTime();
+                    const fechaB = new Date(b.fecha_ingreso).getTime();
+                    return ordenFechaIngreso === 'desc' ? fechaB - fechaA : fechaA - fechaB;
+                  })
+                  .map((seg: any, index: number) => (
                   <div key={seg.id_seguimiento || index} className="agendamiento-item">
                     <div className="agendamiento-header-item">
                       <div className="agendamiento-especialidad">
@@ -159,10 +210,10 @@ const BusquedaPaciente: React.FC = () => {
                                 especialidad: seg.especialidad?.nombre || 'Especialidad no encontrada'
                               });
                             }}
-                            className="btn-historial-small"
+                            className="btn-historial-text"
                             title="Ver historial de cambios"
                           >
-                            📜
+                            Historial
                           </button>
                         )}
                       </div>
