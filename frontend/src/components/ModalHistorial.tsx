@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { pacientesService } from '../api';
 import { Auditoria } from '../types';
-import { formatearFecha } from '../utils';
 import './ModalHistorial.css';
 
 interface ModalHistorialProps {
@@ -40,7 +39,7 @@ const ModalHistorial: React.FC<ModalHistorialProps> = ({
         return;
       }
       // El backend puede devolver { success: true, historial: [...] } o directamente el array
-      const historialArray = data?.historial || data?.data || data || [];
+      const historialArray = Array.isArray(data) ? data : (data as any)?.historial || (data as any)?.data || [];
       if (Array.isArray(historialArray)) {
         setHistorial(historialArray);
       } else {

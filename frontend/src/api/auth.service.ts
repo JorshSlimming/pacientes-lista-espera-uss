@@ -1,8 +1,7 @@
 // Servicio de autenticación con Supabase Auth
-import { supabase } from './supabase';
 import { Trabajador } from '../types';
-import { limpiarRut } from '../utils';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
+import { apiClient } from './client';
 
 export interface LoginResponse {
   success: boolean;

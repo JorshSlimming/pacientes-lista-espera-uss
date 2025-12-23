@@ -11,7 +11,7 @@ interface Props {
   onActualizar: () => void;
 }
 
-const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) => {
+const DetallePaciente: React.FC<Props> = ({ paciente, onClose }) => {
   const { hasRole } = useAuth();
   const [tabActiva, setTabActiva] = useState<'info' | 'seguimiento' | 'auditoria'>('info');
   const [obs, setObs] = useState(paciente.obs || '');
@@ -24,11 +24,11 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
   
   // Estados para editar fechas (con hora)
   const horaInicial = new Date().toTimeString().slice(0, 5);
-  const [fecha1, setFecha1] = useState(paciente.seguimiento.fecha_primera_llamada ? `${paciente.seguimiento.fecha_primera_llamada}T${horaInicial}` : '');
-  const [fecha2, setFecha2] = useState(paciente.seguimiento.fecha_segunda_llamada ? `${paciente.seguimiento.fecha_segunda_llamada}T${horaInicial}` : '');
-  const [fecha3, setFecha3] = useState(paciente.seguimiento.fecha_tercera_llamada ? `${paciente.seguimiento.fecha_tercera_llamada}T${horaInicial}` : '');
-  const [fechaCitacion, setFechaCitacion] = useState(paciente.seguimiento.fecha_citacion || '');
-  const [agendado, setAgendado] = useState(paciente.seguimiento.agendado);
+  const seguimientoActual = Array.isArray(paciente.seguimiento) ? paciente.seguimiento[0] : paciente.seguimiento;
+  const [fecha1, setFecha1] = useState(seguimientoActual?.fecha_primera_llamada ? `${seguimientoActual.fecha_primera_llamada}T${horaInicial}` : '');
+  const [fecha2, setFecha2] = useState(seguimientoActual?.fecha_segunda_llamada ? `${seguimientoActual.fecha_segunda_llamada}T${horaInicial}` : '');
+  const [fecha3, setFecha3] = useState(seguimientoActual?.fecha_tercera_llamada ? `${seguimientoActual.fecha_tercera_llamada}T${horaInicial}` : '');
+  const [agendado, setAgendado] = useState(seguimientoActual?.agendado || 'no');
   const [guardando, setGuardando] = useState(false);
 
   // Recargar datos del paciente al abrir el modal
@@ -40,8 +40,9 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
         console.log('🔍 Seguimiento raw:', data.seguimiento);
         
         // El seguimiento puede venir como array o como objeto
+        const seguimientoRef = Array.isArray(paciente.seguimiento) ? paciente.seguimiento[0] : paciente.seguimiento;
         const seguimiento = Array.isArray(data.seguimiento) 
-          ? data.seguimiento.find((s: any) => s.id_seguimiento === paciente.seguimiento.id_seguimiento) || data.seguimiento[0]
+          ? data.seguimiento.find((s: any) => s.id_seguimiento === seguimientoRef?.id_seguimiento) || data.seguimiento[0]
           : data.seguimiento;
         
         console.log('🔍 Seguimiento seleccionado:', seguimiento);
@@ -75,12 +76,11 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
           fecha3: f3 ? `${f3}T${horaActual}` : ''
         });
         
-        setFechaCitacion(seguimiento?.fecha_citacion || '');
         setAgendado(seguimiento?.agendado || 'no');
       }
     };
     cargarDatosActualizados();
-  }, [paciente.rut, paciente.seguimiento.id_seguimiento]);
+  }, [paciente.rut, seguimientoActual?.id_seguimiento]);
 
   useEffect(() => {
     if (tabActiva === 'auditoria' && hasRole(['jefe'])) {
@@ -91,9 +91,12 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
   const cargarHistorial = async () => {
     setCargandoHistorial(true);
     try {
+      const seguimientoId = Array.isArray(datosActuales.seguimiento) 
+        ? datosActuales.seguimiento[0]?.id_seguimiento 
+        : datosActuales.seguimiento?.id_seguimiento;
       const response = await pacientesService.obtenerHistorialCambios(
         paciente.id_paciente,
-        datosActuales.seguimiento?.id_seguimiento
+        seguimientoId
       );
       const { data, error } = response;
       if (error) {
@@ -103,7 +106,7 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
         return;
       }
       // El backend devuelve { success: true, historial: [...] }
-      const historialArray = data?.historial || data?.data || data || [];
+      const historialArray = Array.isArray(data) ? data : (data as any)?.historial || (data as any)?.data || [];
       if (Array.isArray(historialArray)) {
         setHistorial(historialArray);
       } else {
@@ -130,8 +133,12 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
     // Extraer solo la fecha (YYYY-MM-DD) del datetime-local
     const soloFecha = fechaCompleta ? fechaCompleta.split('T')[0] : null;
 
+    const seguimientoId = Array.isArray(datosActuales.seguimiento) 
+      ? datosActuales.seguimiento[0]?.id_seguimiento 
+      : datosActuales.seguimiento?.id_seguimiento;
+
     const { error } = await pacientesService.actualizarSeguimiento({
-      id_seguimiento: datosActuales.seguimiento.id_seguimiento,
+      id_seguimiento: seguimientoId,
       id_paciente: datosActuales.id_paciente,
       [campoFecha]: soloFecha
     });
@@ -149,10 +156,14 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
     if (tipo === 'tercera') setFecha3(fechaCompleta || '');
     
     // Actualizar datosActuales
+    const seguimientoActualizado = Array.isArray(datosActuales.seguimiento) 
+      ? datosActuales.seguimiento[0] 
+      : datosActuales.seguimiento;
+    
     setDatosActuales(prev => ({
       ...prev,
       seguimiento: {
-        ...prev.seguimiento,
+        ...seguimientoActualizado,
         [campoFecha]: soloFecha
       }
     }));
@@ -162,48 +173,15 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
     }
   };
 
-  const marcarAgendado = async () => {
-    if (!fecha1) {
-      alert('Debe registrar al menos una llamada antes de agendar');
-      return;
-    }
-
-    const nuevaFechaCitacion = prompt('Ingrese fecha de citación (YYYY-MM-DD):');
-    if (!nuevaFechaCitacion) return;
-
-    setGuardando(true);
-
-    const { error } = await pacientesService.actualizarSeguimiento({
-      id_seguimiento: datosActuales.seguimiento.id_seguimiento,
-      id_paciente: datosActuales.id_paciente,
-      agendado: 'si',
-      fecha_citacion: nuevaFechaCitacion
-    });
-
-    setGuardando(false);
-
-    if (error) {
-      alert(`Error al marcar como agendado: ${error}`);
-      return;
-    }
-
-    setAgendado('si');
-    setFechaCitacion(nuevaFechaCitacion);
-    setDatosActuales(prev => ({
-      ...prev,
-      seguimiento: {
-        ...prev.seguimiento,
-        agendado: 'si',
-        fecha_citacion: nuevaFechaCitacion
-      }
-    }));
-  };
-
   const guardarObservacion = async () => {
     setGuardando(true);
     
+    const seguimientoId = Array.isArray(datosActuales.seguimiento) 
+      ? datosActuales.seguimiento[0]?.id_seguimiento 
+      : datosActuales.seguimiento?.id_seguimiento;
+    
     const { error } = await pacientesService.actualizarSeguimiento({
-      id_seguimiento: datosActuales.seguimiento.id_seguimiento,
+      id_seguimiento: seguimientoId,
       id_paciente: datosActuales.id_paciente,
       obs
     });
@@ -307,7 +285,7 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
                 </div>
                 <div className="info-item">
                   <label>Fecha de Ingreso</label>
-                  <div className="info-value">{formatearFecha(paciente.seguimiento.fecha_ingreso)}</div>
+                  <div className="info-value">{formatearFecha((Array.isArray(paciente.seguimiento) ? paciente.seguimiento[0] : paciente.seguimiento)?.fecha_ingreso || '')}</div>
                 </div>
               </div>
 
@@ -363,7 +341,7 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
                           <button 
                             onClick={() => actualizarFechaLlamada('primera', fecha1)}
                             className="btn-llamada btn-guardar"
-                            disabled={guardando || fecha1.split('T')[0] === datosActuales.seguimiento.fecha_primera_llamada}
+                            disabled={guardando || fecha1.split('T')[0] === (Array.isArray(datosActuales.seguimiento) ? datosActuales.seguimiento[0] : datosActuales.seguimiento)?.fecha_primera_llamada}
                           >
                             Guardar
                           </button>
@@ -412,7 +390,7 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
                           <button 
                             onClick={() => actualizarFechaLlamada('segunda', fecha2)}
                             className="btn-llamada btn-guardar"
-                            disabled={guardando || fecha2.split('T')[0] === datosActuales.seguimiento.fecha_segunda_llamada}
+                            disabled={guardando || fecha2.split('T')[0] === (Array.isArray(datosActuales.seguimiento) ? datosActuales.seguimiento[0] : datosActuales.seguimiento)?.fecha_segunda_llamada}
                           >
                             Guardar
                           </button>
@@ -461,7 +439,7 @@ const DetallePaciente: React.FC<Props> = ({ paciente, onClose, onActualizar }) =
                           <button 
                             onClick={() => actualizarFechaLlamada('tercera', fecha3)}
                             className="btn-llamada btn-guardar"
-                            disabled={guardando || fecha3.split('T')[0] === datosActuales.seguimiento.fecha_tercera_llamada}
+                            disabled={guardando || fecha3.split('T')[0] === (Array.isArray(datosActuales.seguimiento) ? datosActuales.seguimiento[0] : datosActuales.seguimiento)?.fecha_tercera_llamada}
                           >
                             Guardar
                           </button>

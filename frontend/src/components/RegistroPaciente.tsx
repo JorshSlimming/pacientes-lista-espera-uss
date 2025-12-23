@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../AuthContext';
 import { Especialidad, Comuna, Origen, Institucion } from '../types';
 import { validarRut, formatearRut, validarEmail, validarCelular, limpiarRut } from '../utils';
 import { catalogosService } from '../api/catalogos.service';
@@ -12,7 +11,6 @@ interface Props {
 }
 
 const RegistroPaciente: React.FC<Props> = ({ onClose, onSuccess }) => {
-  const { usuario } = useAuth();
   
   // Formulario principal
   const [rut, setRut] = useState('');

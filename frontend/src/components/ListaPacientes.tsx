@@ -73,11 +73,12 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
       }
       
       if (pacientesRes.data) {
-        console.log('✅ Pacientes recibidos:', pacientesRes.data.length);
+        console.log('✅ Pacientes recibidos:', Array.isArray(pacientesRes.data) ? pacientesRes.data.length : 'no es array');
+        const pacientesData = Array.isArray(pacientesRes.data) ? pacientesRes.data : [];
         if (resetear) {
-          setPacientesCompletos(pacientesRes.data);
+          setPacientesCompletos(pacientesData);
         } else {
-          setPacientesCompletos(prev => [...prev, ...pacientesRes.data]);
+          setPacientesCompletos(prev => [...prev, ...pacientesData]);
         }
         
         // Actualizar info de paginación si viene en la respuesta
@@ -182,22 +183,23 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
         // Si hay subespecialidad 1 seleccionada, incluir ella y todas sus hijas de nivel 3
         idsEspecialidadesAFiltrar = [parseInt(filtroSubespecialidad1)];
         const hijas = especialidades.filter(e => e.parent_id === parseInt(filtroSubespecialidad1));
-        idsEspecialidadesAFiltrar.push(...hijas.map(e => e.id || e.id_especialidad));
+        idsEspecialidadesAFiltrar.push(...hijas.map(e => (e.id || e.id_especialidad) as number).filter(id => id !== undefined));
       } else {
         // Si solo hay especialidad principal, incluir ella y todas sus hijas (nivel 2 y 3)
         idsEspecialidadesAFiltrar = [parseInt(filtroEspecialidad)];
         const hijasNivel2 = especialidades.filter(e => e.parent_id === parseInt(filtroEspecialidad));
-        idsEspecialidadesAFiltrar.push(...hijasNivel2.map(e => e.id || e.id_especialidad));
+        idsEspecialidadesAFiltrar.push(...hijasNivel2.map(e => (e.id || e.id_especialidad) as number).filter(id => id !== undefined));
         // También agregar las hijas de nivel 3
         hijasNivel2.forEach(hijo2 => {
           const hijasNivel3 = especialidades.filter(e => e.parent_id === (hijo2.id || hijo2.id_especialidad));
-          idsEspecialidadesAFiltrar.push(...hijasNivel3.map(e => e.id || e.id_especialidad));
+          idsEspecialidadesAFiltrar.push(...hijasNivel3.map(e => (e.id || e.id_especialidad) as number).filter(id => id !== undefined));
         });
       }
       
-      resultado = resultado.filter(p => 
-        idsEspecialidadesAFiltrar.includes(p.seguimiento?.id_especialidad)
-      );
+      resultado = resultado.filter(p => {
+        const seg = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+        return seg?.id_especialidad && idsEspecialidadesAFiltrar.includes(seg.id_especialidad);
+      });
     }
 
     // Filtro por comuna
@@ -212,17 +214,26 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
 
     // Filtro por estado de agendado
     if (filtroAgendado === 'agendado') {
-      resultado = resultado.filter(p => p.seguimiento?.agendado === 'si');
+      resultado = resultado.filter(p => {
+        const seg = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+        return seg?.agendado === 'si';
+      });
     } else if (filtroAgendado === 'pendiente') {
-      resultado = resultado.filter(p => p.seguimiento?.agendado === 'no');
+      resultado = resultado.filter(p => {
+        const seg = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+        return seg?.agendado === 'no';
+      });
     }
 
     // Ordenar
     resultado.sort((a, b) => {
       let comparacion = 0;
+      const segA = Array.isArray(a.seguimiento) ? a.seguimiento[0] : a.seguimiento;
+      const segB = Array.isArray(b.seguimiento) ? b.seguimiento[0] : b.seguimiento;
+      
       if (ordenPor === 'fecha_ingreso') {
-        const fechaA = a.seguimiento?.fecha_ingreso || '';
-        const fechaB = b.seguimiento?.fecha_ingreso || '';
+        const fechaA = segA?.fecha_ingreso || '';
+        const fechaB = segB?.fecha_ingreso || '';
         comparacion = fechaA.localeCompare(fechaB);
       } else if (ordenPor === 'nombre') {
         const nombreA = `${a.nombre} ${a.primer_apellido}`.toLowerCase();
@@ -242,9 +253,18 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
   const estadisticas = useMemo(() => {
     return {
       total: pacientesFiltrados.length,
-      pendientes: pacientesFiltrados.filter(p => p.seguimiento?.agendado === 'no').length,
-      agendados: pacientesFiltrados.filter(p => p.seguimiento?.agendado === 'si').length,
-      sinLlamar: pacientesFiltrados.filter(p => !p.seguimiento?.fecha_primera_llamada).length
+      pendientes: pacientesFiltrados.filter(p => {
+        const seg = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+        return seg?.agendado === 'no';
+      }).length,
+      agendados: pacientesFiltrados.filter(p => {
+        const seg = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+        return seg?.agendado === 'si';
+      }).length,
+      sinLlamar: pacientesFiltrados.filter(p => {
+        const seg = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+        return !seg?.fecha_primera_llamada;
+      }).length
     };
   }, [pacientesFiltrados]);
 
@@ -259,7 +279,8 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
   };
 
   const obtenerEstadoLlamadas = (p: PacienteCompleto) => {
-    const { fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada } = p.seguimiento;
+    const seguimiento = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+    const { fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada } = seguimiento || {};
     if (fecha_tercera_llamada) return '3 llamadas';
     if (fecha_segunda_llamada) return '2 llamadas';
     if (fecha_primera_llamada) return '1 llamada';
@@ -425,7 +446,9 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
                 </td>
               </tr>
             ) : (
-              pacientesFiltrados.map(p => (
+              pacientesFiltrados.map(p => {
+                const seg = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+                return (
                 <tr key={p.rut}>
                   <td>{p.rut}</td>
                   <td>{`${p.nombre} ${p.primer_apellido} ${p.segundo_apellido}`}</td>
@@ -434,16 +457,16 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
                   <td>{p.comuna?.nombre || 'N/A'}</td>
                   <td>{p.origen?.nombre || 'N/A'}</td>
                   <td>
-                    <span className={`badge-llamadas llamadas-${p.seguimiento?.fecha_primera_llamada ? (p.seguimiento?.fecha_tercera_llamada ? '3' : (p.seguimiento?.fecha_segunda_llamada ? '2' : '1')) : '0'}`}>
+                    <span className={`badge-llamadas llamadas-${seg?.fecha_primera_llamada ? (seg?.fecha_tercera_llamada ? '3' : (seg?.fecha_segunda_llamada ? '2' : '1')) : '0'}`}>
                       {obtenerEstadoLlamadas(p)}
                     </span>
                   </td>
                   <td>
-                    <span className={`badge ${p.seguimiento?.agendado === 'si' ? 'badge-success' : 'badge-warning'}`}>
-                      {p.seguimiento?.agendado === 'si' ? 'Sí' : 'No'}
+                    <span className={`badge ${seg?.agendado === 'si' ? 'badge-success' : 'badge-warning'}`}>
+                      {seg?.agendado === 'si' ? 'Sí' : 'No'}
                     </span>
                   </td>
-                  <td>{p.seguimiento?.fecha_ingreso ? formatearFecha(p.seguimiento.fecha_ingreso) : 'N/A'}</td>
+                  <td>{seg?.fecha_ingreso ? formatearFecha(seg.fecha_ingreso) : 'N/A'}</td>
                   <td>
                     <button
                       onClick={() => setPacienteSeleccionado(p)}
@@ -453,7 +476,8 @@ const ListaPacientes: React.FC<Props> = ({ onActualizar }) => {
                     </button>
                   </td>
                 </tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>

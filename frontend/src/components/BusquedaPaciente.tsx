@@ -169,7 +169,7 @@ const BusquedaPaciente: React.FC = () => {
 
           <div className="agendamientos-card">
             <div className="agendamientos-header">
-              <h3>Agendamientos ({pacienteEncontrado.seguimiento?.length || 0})</h3>
+              <h3>Agendamientos ({Array.isArray(pacienteEncontrado.seguimiento) ? pacienteEncontrado.seguimiento.length : 1})</h3>
               <button
                 onClick={() => setOrdenFechaIngreso(ordenFechaIngreso === 'desc' ? 'asc' : 'desc')}
                 className="btn-ordenar"
@@ -179,11 +179,11 @@ const BusquedaPaciente: React.FC = () => {
               </button>
             </div>
 
-            {!pacienteEncontrado.seguimiento || pacienteEncontrado.seguimiento.length === 0 ? (
+            {!pacienteEncontrado.seguimiento ? (
               <div className="no-data">Sin información de seguimiento</div>
             ) : (
               <div className="agendamientos-lista">
-                {[...pacienteEncontrado.seguimiento]
+                {(Array.isArray(pacienteEncontrado.seguimiento) ? [...pacienteEncontrado.seguimiento] : [pacienteEncontrado.seguimiento])
                   .sort((a: any, b: any) => {
                     // Ordenar por fecha_ingreso según el estado de ordenFechaIngreso
                     const fechaA = new Date(a.fecha_ingreso).getTime();

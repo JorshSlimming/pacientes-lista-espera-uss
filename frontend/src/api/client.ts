@@ -1,6 +1,5 @@
 // Cliente HTTP para comunicarse con las edge functions de Supabase
 import { EDGE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from '../config';
-import { supabase } from './supabase';
 
 export interface ApiResponse<T = any> {
   data?: T;

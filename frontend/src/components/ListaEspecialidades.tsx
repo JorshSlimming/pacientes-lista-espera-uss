@@ -18,14 +18,6 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
   const [filtroSubesp2, setFiltroSubesp2] = useState('');
   const [soloPendientes, setSoloPendientes] = useState(false);
   
-  // Filtros aplicados (lo que realmente filtra la lista)
-  const [filtrosAplicados, setFiltrosAplicados] = useState({
-    especialidad: '',
-    subesp1: '',
-    subesp2: '',
-    pendientes: false
-  });
-  
   const [ordenPor, setOrdenPor] = useState<'fecha_ingreso' | 'num_llamadas'>('fecha_ingreso');
   const [ordenDir, setOrdenDir] = useState<'asc' | 'desc'>('desc');
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState<PacienteCompleto | null>(null);
@@ -41,18 +33,12 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
   const [fechaHoraLlamada, setFechaHoraLlamada] = useState('');
   const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
-
-  const handleEspecialidadChange = (value: string) => {
-    setFiltroEspecialidad(value);
-    setFiltroSubesp1('');
-    setFiltroSubesp2('');
-  };
-
-  const handleSubesp1Change = (value: string) => {
-    setFiltroSubesp1(value);
-    setFiltroSubesp2('');
-  };
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    type: 'danger' | 'warning' | 'info';
+    onConfirm: () => void;
+  } | null>(null);
 
   useEffect(() => {
     cargarEspecialidades();
@@ -63,7 +49,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     console.log('📦 Response completa:', response);
     
     // El backend devuelve el array directamente, pero apiClient lo envuelve en { data }
-    let especialidadesData = response.data || response;
+    let especialidadesData: any = response.data || response;
     
     // Si viene como objeto {0: {...}, 1: {...}}, convertir a array
     if (especialidadesData && typeof especialidadesData === 'object' && !Array.isArray(especialidadesData)) {
@@ -102,12 +88,15 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
   // Función recursiva para obtener todos los descendientes de una especialidad
   const obtenerTodosDescendientes = (parentId: number): number[] => {
     const hijosDirectos = especialidades.filter(e => e.parent_id === parentId);
-    let todosLosDescendientes = hijosDirectos.map(e => e.id_especialidad);
+    let todosLosDescendientes = hijosDirectos.map(e => e.id_especialidad || e.id).filter((id): id is number => id !== undefined);
     
     // Recursivamente agregar descendientes de cada hijo
     hijosDirectos.forEach(hijo => {
-      const descendientesDelHijo = obtenerTodosDescendientes(hijo.id_especialidad);
-      todosLosDescendientes = [...todosLosDescendientes, ...descendientesDelHijo];
+      const hijoId = hijo.id_especialidad || hijo.id;
+      if (hijoId) {
+        const descendientesDelHijo = obtenerTodosDescendientes(hijoId);
+        todosLosDescendientes = [...todosLosDescendientes, ...descendientesDelHijo];
+      }
     });
     
     return todosLosDescendientes;
@@ -184,11 +173,11 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
       }
       
       const nombreEsp = filtroSubesp2 
-        ? especialidades.find(e => e.id_especialidad === parseInt(filtroSubesp2))?.nombre
+        ? especialidades.find(e => (e.id_especialidad || e.id) === parseInt(filtroSubesp2))?.nombre
         : filtroSubesp1
-        ? especialidades.find(e => e.id_especialidad === parseInt(filtroSubesp1))?.nombre
+        ? especialidades.find(e => (e.id_especialidad || e.id) === parseInt(filtroSubesp1))?.nombre
         : filtroEspecialidad
-        ? especialidades.find(e => e.id_especialidad === parseInt(filtroEspecialidad))?.nombre
+        ? especialidades.find(e => (e.id_especialidad || e.id) === parseInt(filtroEspecialidad))?.nombre
         : 'Todas';
       
       setToast({
@@ -201,10 +190,8 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     }
     
     // El backend devuelve { data: [...], paginacion: {...} } pero apiClient lo envuelve en { data: {...} }
-    const pacientesArray = data?.data || data || [];
-    const paginacion = data?.paginacion;
-    
-    const resultado = Array.isArray(pacientesArray) ? pacientesArray : [];
+    const resultado = Array.isArray(data) ? data : (data as any)?.data || [];
+    const paginacion = Array.isArray(data) ? undefined : (data as any)?.paginacion;
     
     if (cargarMas) {
       setPacientesCargados(prev => [...prev, ...resultado]);
@@ -219,12 +206,6 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
       setTotalResultados(paginacion.total || 0);
     }
     
-    setFiltrosAplicados({
-      especialidad: filtroEspecialidad,
-      subesp1: filtroSubesp1,
-      subesp2: filtroSubesp2,
-      pendientes: soloPendientes
-    });
     setCargando(false);
     setCargandoMas(false);
   };
@@ -255,19 +236,22 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     // Ordenar
     resultado.sort((a, b) => {
       let comparacion = 0;
+      const segA = Array.isArray(a.seguimiento) ? a.seguimiento[0] : a.seguimiento;
+      const segB = Array.isArray(b.seguimiento) ? b.seguimiento[0] : b.seguimiento;
+      
       if (ordenPor === 'fecha_ingreso') {
-        comparacion = (a.seguimiento?.fecha_ingreso || '').localeCompare(b.seguimiento?.fecha_ingreso || '');
+        comparacion = (segA?.fecha_ingreso || '').localeCompare(segB?.fecha_ingreso || '');
       } else if (ordenPor === 'num_llamadas') {
         const llamadasA = [
-          a.seguimiento?.fecha_primera_llamada,
-          a.seguimiento?.fecha_segunda_llamada,
-          a.seguimiento?.fecha_tercera_llamada
+          segA?.fecha_primera_llamada,
+          segA?.fecha_segunda_llamada,
+          segA?.fecha_tercera_llamada
         ].filter(f => f).length;
         
         const llamadasB = [
-          b.seguimiento?.fecha_primera_llamada,
-          b.seguimiento?.fecha_segunda_llamada,
-          b.seguimiento?.fecha_tercera_llamada
+          segB?.fecha_primera_llamada,
+          segB?.fecha_segunda_llamada,
+          segB?.fecha_tercera_llamada
         ].filter(f => f).length;
         
         comparacion = llamadasA - llamadasB;
@@ -279,8 +263,9 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
   }, [pacientesCargados, ordenPor, ordenDir]);
 
   const cambiarEstadoAgendado = async (paciente: PacienteCompleto, nuevoEstado: 'si' | 'no' | 'desiste') => {
+    const seguimientoActual = Array.isArray(paciente.seguimiento) ? paciente.seguimiento[0] : paciente.seguimiento;
     const { error } = await pacientesService.actualizarSeguimiento({
-      id_seguimiento: paciente.seguimiento.id_seguimiento,
+      id_seguimiento: seguimientoActual?.id_seguimiento,
       id_paciente: paciente.id_paciente,
       agendado: nuevoEstado
     });
@@ -290,18 +275,20 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     } else {
       // Actualizar solo el paciente en la lista local usando id_seguimiento como identificador único
       setPacientesCargados(prev => 
-        prev.map(p => 
-          p.seguimiento?.id_seguimiento === paciente.seguimiento.id_seguimiento
-            ? { ...p, seguimiento: { ...p.seguimiento, agendado: nuevoEstado } }
-            : p
-        )
+        prev.map(p => {
+          const pSeguimiento = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+          const pacienteSeguimiento = Array.isArray(paciente.seguimiento) ? paciente.seguimiento[0] : paciente.seguimiento;
+          return pSeguimiento?.id_seguimiento === pacienteSeguimiento?.id_seguimiento
+            ? { ...p, seguimiento: Array.isArray(p.seguimiento) ? [{ ...pSeguimiento, agendado: nuevoEstado }] : { ...pSeguimiento, agendado: nuevoEstado } }
+            : p;
+        })
       );
       setToast({ message: 'Estado actualizado correctamente', type: 'success' });
     }
   };
 
   const abrirModalLlamada = (paciente: PacienteCompleto) => {
-    const seg = paciente.seguimiento;
+    const seg = Array.isArray(paciente.seguimiento) ? paciente.seguimiento[0] : paciente.seguimiento;
     if (!seg) return;
 
     let tipo: 'primera' | 'segunda' | 'tercera';
@@ -333,8 +320,9 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
       tipo === 'segunda' ? 'fecha_segunda_llamada' :
       'fecha_tercera_llamada';
 
+    const seguimientoActual = Array.isArray(paciente.seguimiento) ? paciente.seguimiento[0] : paciente.seguimiento;
     const { error } = await pacientesService.actualizarSeguimiento({
-      id_seguimiento: paciente.seguimiento.id_seguimiento,
+      id_seguimiento: seguimientoActual?.id_seguimiento,
       id_paciente: paciente.id_paciente,
       [campoFecha]: fechaISO
     });
@@ -344,7 +332,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
       return;
     }
 
-    if (tipo === 'tercera' && paciente.seguimiento?.agendado === 'no') {
+    if (tipo === 'tercera' && seguimientoActual?.agendado === 'no') {
       setToast({ 
         message: 'Sugerencia: Considere marcar como "desiste" si no se pudo contactar después de 3 intentos', 
         type: 'warning' 
@@ -356,13 +344,14 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
     // Actualizar solo el paciente en la lista local usando id_seguimiento
     setPacientesCargados(prev => 
       prev.map(p => {
-        if (p.seguimiento?.id_seguimiento === paciente.seguimiento.id_seguimiento) {
+        const pSeguimiento = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+        const pacienteSeguimiento = Array.isArray(paciente.seguimiento) ? paciente.seguimiento[0] : paciente.seguimiento;
+        if (pSeguimiento?.id_seguimiento === pacienteSeguimiento?.id_seguimiento) {
           return {
             ...p,
-            seguimiento: {
-              ...p.seguimiento,
-              [campoFecha]: fechaISO
-            }
+            seguimiento: Array.isArray(p.seguimiento) 
+              ? [{ ...pSeguimiento, [campoFecha]: fechaISO }]
+              : { ...pSeguimiento, [campoFecha]: fechaISO }
           };
         }
         return p;
@@ -374,7 +363,8 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
   };
 
   const obtenerEstadoLlamadas = (p: PacienteCompleto) => {
-    const { fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada } = p.seguimiento || {};
+    const seguimiento = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+    const { fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada } = seguimiento || {};
     const numLlamadas = [fecha_primera_llamada, fecha_segunda_llamada, fecha_tercera_llamada]
       .filter(f => f).length;
     return numLlamadas;
@@ -494,14 +484,14 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
             ) : pacientesFiltrados.length === 0 ? (
               <tr>
                 <td colSpan={8} className="no-data">
-                  {Object.values(filtrosAplicados).every(v => !v) 
-                    ? 'Seleccione filtros y presione "Buscar" para cargar pacientes'
-                    : 'No se encontraron pacientes con los filtros aplicados'}
+                  Seleccione filtros y presione "Buscar" para cargar pacientes
                 </td>
               </tr>
             ) : (
-              pacientesFiltrados.map((p, idx) => (
-                <tr key={`${p.id_paciente}-${idx}`}>
+              pacientesFiltrados.map(p => {
+                const seg = Array.isArray(p.seguimiento) ? p.seguimiento[0] : p.seguimiento;
+                return (
+                <tr key={`${p.id_paciente}-${seg?.id_seguimiento || 0}`}>
                   <td>{formatearRut(p.rut)}</td>
                   <td>{`${p.nombre} ${p.primer_apellido} ${p.segundo_apellido}`}</td>
                   <td>{calcularEdad(p.fecha_nacimiento)} años</td>
@@ -516,9 +506,9 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
                   </td>
                   <td>
                     <select
-                      value={p.seguimiento?.agendado || 'no'}
+                      value={seg?.agendado || 'no'}
                       onChange={(e) => cambiarEstadoAgendado(p, e.target.value as any)}
-                      className={`select-agendado agendado-${p.seguimiento?.agendado || 'no'}`}
+                      className={`select-agendado agendado-${seg?.agendado || 'no'}`}
                     >
                       <option value="no">NO</option>
                       <option value="si">SÍ</option>
@@ -537,7 +527,8 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
                     </button>
                   </td>
                 </tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>
@@ -618,7 +609,7 @@ const ListaEspecialidades: React.FC<Props> = ({ onActualizar }) => {
         />
       )}
 
-      {/* Di\u00e1logo de confirmaci\u00f3n */}
+      {/* Diálogo de confirmación */}
       {confirmDialog && (
         <ConfirmDialog
           title={confirmDialog.title}

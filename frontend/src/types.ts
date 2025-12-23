@@ -33,6 +33,7 @@ export interface Origen {
 
 export interface InstitucionConvenio {
   id_institucion?: number;
+  id_institucion_convenio?: number;
   id?: number;
   tipo: string;
   nombre: string;
@@ -73,10 +74,12 @@ export interface Paciente {
   id_origen: number;
   id_institucion_convenio: number | null;
   contacto: Contacto;
+  message?: string;
 }
 
 export interface Seguimiento {
   id: number;
+  id_seguimiento: number;
   fecha_ingreso: string;
   fecha_primera_llamada: string | null;
   fecha_segunda_llamada: string | null;
@@ -87,6 +90,8 @@ export interface Seguimiento {
   id_paciente: number;
   id_especialidad: number;
   id_ejecutivo_ingreso: number;
+  especialidad?: Especialidad;
+  ejecutivo?: Trabajador;
 }
 
 export interface Auditoria {
@@ -101,10 +106,26 @@ export interface Auditoria {
 }
 
 export interface PacienteCompleto extends Paciente {
-  seguimiento: Seguimiento;
+  seguimiento: Seguimiento | Seguimiento[];
   comuna: Comuna;
   origen: Origen;
   institucion: InstitucionConvenio | null;
   especialidad: Especialidad;
   ejecutivo: Trabajador;
+}
+
+export interface HistorialResponse {
+  success: boolean;
+  historial: Auditoria[];
+  data?: Auditoria[];
+}
+
+export interface BusquedaPacientesResponse {
+  data: PacienteCompleto[];
+  paginacion: {
+    total: number;
+    pagina: number;
+    limite: number;
+    totalPaginas: number;
+  };
 }

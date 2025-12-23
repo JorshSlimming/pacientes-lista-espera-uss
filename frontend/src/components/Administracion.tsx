@@ -157,7 +157,7 @@ const Administracion: React.FC = () => {
       
       let resultado;
       if (itemSeleccionado) {
-        resultado = await catalogosService.comunas.actualizar(itemSeleccionado.id_comuna, { nombre: formComuna.nombre });
+        resultado = await catalogosService.comunas.actualizar(itemSeleccionado.id_comuna || itemSeleccionado.id, { nombre: formComuna.nombre });
       } else {
         resultado = await catalogosService.comunas.crear({ nombre: formComuna.nombre, archivado: false });
       }
@@ -176,7 +176,7 @@ const Administracion: React.FC = () => {
       
       let resultado;
       if (itemSeleccionado) {
-        resultado = await catalogosService.origenes.actualizar(itemSeleccionado.id_origen, { nombre: formOrigen.nombre });
+        resultado = await catalogosService.origenes.actualizar(itemSeleccionado.id_origen || itemSeleccionado.id, { nombre: formOrigen.nombre });
       } else {
         resultado = await catalogosService.origenes.crear({ nombre: formOrigen.nombre, requiere_ci: false, archivado: false });
       }
@@ -195,7 +195,7 @@ const Administracion: React.FC = () => {
       
       let resultado;
       if (itemSeleccionado) {
-        resultado = await catalogosService.especialidades.actualizar(itemSeleccionado.id_especialidad, { nombre: formEspecialidad.nombre });
+        resultado = await catalogosService.especialidades.actualizar(itemSeleccionado.id_especialidad || itemSeleccionado.id, { nombre: formEspecialidad.nombre });
       } else {
         resultado = await catalogosService.especialidades.crear({ 
           nombre: formEspecialidad.nombre, 
@@ -219,7 +219,7 @@ const Administracion: React.FC = () => {
       
       let resultado;
       if (itemSeleccionado) {
-        resultado = await catalogosService.instituciones.actualizar(itemSeleccionado.id_institucion_convenio, { 
+        resultado = await catalogosService.instituciones.actualizar(itemSeleccionado.id_institucion_convenio || itemSeleccionado.id_institucion || itemSeleccionado.id, { 
           nombre: formInstitucion.nombre,
           tipo: formInstitucion.tipo 
         });
@@ -253,13 +253,13 @@ const Administracion: React.FC = () => {
         
         let resultado;
         if (entidadActiva === 'comunas') {
-          resultado = await catalogosService.comunas.archivar(item.id_comuna);
+          resultado = await catalogosService.comunas.archivar(item.id_comuna || item.id);
         } else if (entidadActiva === 'origenes') {
-          resultado = await catalogosService.origenes.archivar(item.id_origen);
+          resultado = await catalogosService.origenes.archivar(item.id_origen || item.id);
         } else if (entidadActiva === 'especialidades' || entidadActiva === 'subesp1' || entidadActiva === 'subesp2') {
-          resultado = await catalogosService.especialidades.archivar(item.id_especialidad);
+          resultado = await catalogosService.especialidades.archivar(item.id_especialidad || item.id);
         } else if (entidadActiva === 'instituciones') {
-          resultado = await catalogosService.instituciones.archivar(item.id_institucion_convenio);
+          resultado = await catalogosService.instituciones.archivar(item.id_institucion_convenio || item.id_institucion || item.id);
         }
         
         if (resultado?.error) {
@@ -282,13 +282,13 @@ const Administracion: React.FC = () => {
         
         let resultado;
         if (entidadActiva === 'comunas') {
-          resultado = await catalogosService.comunas.desarchivar(item.id_comuna);
+          resultado = await catalogosService.comunas.desarchivar(item.id_comuna || item.id);
         } else if (entidadActiva === 'origenes') {
-          resultado = await catalogosService.origenes.desarchivar(item.id_origen);
+          resultado = await catalogosService.origenes.desarchivar(item.id_origen || item.id);
         } else if (entidadActiva === 'especialidades' || entidadActiva === 'subesp1' || entidadActiva === 'subesp2') {
-          resultado = await catalogosService.especialidades.desarchivar(item.id_especialidad);
+          resultado = await catalogosService.especialidades.desarchivar(item.id_especialidad || item.id);
         } else if (entidadActiva === 'instituciones') {
-          resultado = await catalogosService.instituciones.desarchivar(item.id_institucion_convenio);
+          resultado = await catalogosService.instituciones.desarchivar(item.id_institucion_convenio || item.id_institucion || item.id);
         }
         
         if (resultado?.error) {
@@ -347,7 +347,7 @@ const Administracion: React.FC = () => {
                   <h4>{espPrincipal.nombre}</h4>
                   <button 
                     className="btn btn-sm btn-primary" 
-                    onClick={() => handleNuevoEnGrupo(espPrincipal.id_especialidad, 2)}
+                    onClick={() => handleNuevoEnGrupo(espPrincipal.id_especialidad || espPrincipal.id || 0, 2)}
                   >
                     ➕ Nuevo
                   </button>
@@ -433,7 +433,7 @@ const Administracion: React.FC = () => {
                   <h4>{sub1.nombre} <span className="padre-badge">({padre?.nombre})</span></h4>
                   <button 
                     className="btn btn-sm btn-primary" 
-                    onClick={() => handleNuevoEnGrupo(sub1.id_especialidad, 3)}
+                    onClick={() => handleNuevoEnGrupo(sub1.id_especialidad || sub1.id || 0, 3)}
                   >
                     ➕ Nuevo
                   </button>

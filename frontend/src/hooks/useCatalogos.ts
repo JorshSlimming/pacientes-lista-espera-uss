@@ -1,7 +1,6 @@
 // Hook personalizado para cargar y manejar catálogos
 import { useState, useEffect } from 'react';
 import { catalogosService, DatosAutocompletar } from '../api';
-import { Comuna, Origen, InstitucionConvenio, Especialidad } from '../types';
 
 export const useCatalogos = () => {
   const [catalogos, setCatalogos] = useState<DatosAutocompletar>({
